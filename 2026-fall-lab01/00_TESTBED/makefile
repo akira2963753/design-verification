@@ -12,6 +12,8 @@ TIMESCALE="-timescale=1ns/1ps"
 syn_tcl="syn90.tcl"
 syn_log="syn.log"
 seed = 12345
+DPI_SOURCE = ../00_TESTBED/component/oiss.cpp
+DPI_CFLAGS = -std=c++17
 
 #======================================================
 #                          VCS
@@ -22,6 +24,8 @@ VCS_RTL = vcs ${TIMESCALE} \
 	-R \
 	+v2k \
 	-f ${source_file} \
+	-CFLAGS "${DPI_CFLAGS}" \
+	${DPI_SOURCE} \
 	+notimingchecks \
 	+define+RTL \
 	+ntb_random_seed=${seed}
@@ -32,6 +36,8 @@ VCS_GATE = vcs ${TIMESCALE} \
 	-R \
 	+v2k \
 	-f ${source_file} \
+	-CFLAGS "${DPI_CFLAGS}" \
+	${DPI_SOURCE} \
 	+neg_tchk \
 	+define+GATE \
 	+ntb_random_seed=${seed}
