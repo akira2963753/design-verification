@@ -11,7 +11,7 @@ source_file="file.f"
 TIMESCALE="-timescale=1ns/1ps"
 syn_tcl="syn90.tcl"
 syn_log="syn.log"
-seed = 12345
+seed = 11111
 DPI_SOURCE = ../00_TESTBED/component/oiss.cpp
 DPI_CFLAGS = -std=c++17
 
@@ -28,7 +28,7 @@ VCS_RTL = vcs ${TIMESCALE} \
 	${DPI_SOURCE} \
 	+notimingchecks \
 	+define+RTL \
-	+ntb_random_seed=${seed}
+	+ntb_random_seed=${seed} | tee rtl_sim.log
 
 VCS_GATE = vcs ${TIMESCALE} \
 	-full64 \
