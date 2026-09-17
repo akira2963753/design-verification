@@ -67,6 +67,7 @@ class scoreboard;
     );
         $display("================================================================");
         $display("                  Scoreboard Check Failed ! ! !");
+        $display("================================================================");
         $display("Reason: %s", reason);
         if(tr != null) begin
             $display("TEST PATTERN [%0d]", tr.testcase);

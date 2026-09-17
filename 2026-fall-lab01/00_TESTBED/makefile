@@ -11,6 +11,7 @@ source_file="file.f"
 TIMESCALE="-timescale=1ns/1ps"
 syn_tcl="syn90.tcl"
 syn_log="syn.log"
+seed = 12345
 
 #======================================================
 #                          VCS
@@ -23,7 +24,7 @@ VCS_RTL = vcs ${TIMESCALE} \
 	-f ${source_file} \
 	+notimingchecks \
 	+define+RTL \
-	+ntb_random_seed=12345
+	+ntb_random_seed=${seed}
 
 VCS_GATE = vcs ${TIMESCALE} \
 	-full64 \
@@ -33,7 +34,7 @@ VCS_GATE = vcs ${TIMESCALE} \
 	-f ${source_file} \
 	+neg_tchk \
 	+define+GATE \
-	+ntb_random_seed=12345
+	+ntb_random_seed=${seed}
 
 #======================================================
 #                   Design Compiler

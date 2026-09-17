@@ -103,6 +103,7 @@ module PATTERN (
             scb.run();
         join
 
+
         // Allow the driver's final clocking-block valid clear to take effect.
         @(negedge clk);
         if(mon.sampled_num != PATTERN_NUM || scb.checked_num != PATTERN_NUM ||
@@ -116,6 +117,7 @@ module PATTERN (
                 "             Environment Completion Mismatch ! ! !\n",
                 "================================================================"});
         end
+
 
         $display("================================================================");
         $display("          OISS Environment Completed: %0d Patterns Passed", scb.checked_num);
