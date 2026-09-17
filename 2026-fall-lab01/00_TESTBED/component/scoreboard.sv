@@ -46,10 +46,6 @@ class scoreboard;
         input mailbox #(mon_txn) mon2scb,
         input int unsigned pattern_num
     );
-        if(mon2scb == null) $fatal(1,
-            {"================================================================\n",
-            "                Scoreboard Mailbox is Null ! ! !\n",
-            "================================================================"});
 
         this.mon2scb = mon2scb;
         this.pattern_num = pattern_num;

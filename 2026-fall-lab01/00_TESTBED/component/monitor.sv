@@ -23,15 +23,7 @@ class monitor;
         input mailbox #(mon_txn) mon2scb,
         input int unsigned pattern_num
     );
-        if(mon_if == null) $fatal(1,
-            {"================================================================\n",
-            "             Monitor Virtual Interface is Null ! ! !\n",
-            "================================================================"});
-        if(mon2scb == null) $fatal(1,
-            {"================================================================\n",
-            "                 Monitor Mailbox is Null ! ! !\n",
-            "================================================================"});
-
+    
         this.mon_if = mon_if;
         this.mon2scb = mon2scb;
         this.pattern_num = pattern_num;

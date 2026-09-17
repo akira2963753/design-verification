@@ -22,14 +22,6 @@ class driver;
         input mailbox #(txn) gen2drv,
         input int unsigned pattern_num
     );
-        if(drv_if == null) $fatal(1,
-            {"================================================================\n",
-            "             Driver Virtual Interface is Null ! ! !              \n",
-            "================================================================"});
-        if(gen2drv == null) $fatal(1,
-            {"================================================================\n",
-            "                 Driver Mailbox is Null ! ! !                    \n",
-            "================================================================"});
 
         this.drv_if = drv_if;
         this.gen2drv = gen2drv;
@@ -42,11 +34,6 @@ class driver;
 
     // Called by run() at the driver clocking event; do not wait another edge.
     local task drive_one(input txn tr);
-        if(tr == null) $fatal(1,
-            {"================================================================\n",
-            "               Driver Transaction is Null ! ! !                  \n",
-            "================================================================"});
-
         drv_if.driver_cb.Inst_seq_I <= tr.inst_seq;
         drv_if.driver_cb.Inst_latency_I <= tr.inst_lat;
         drv_if.driver_cb.sample_valid <= 1'b1;
@@ -73,7 +60,5 @@ class driver;
         // The monitor samples the last valid transaction before this clear.
         @(drv_if.driver_cb);
         drv_if.driver_cb.sample_valid <= 1'b0;
-
-        // The checker must finish sampling the final transaction before exit.
     endtask
 endclass
