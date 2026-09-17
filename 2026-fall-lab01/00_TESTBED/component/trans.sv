@@ -183,14 +183,16 @@ class txn;
     //=============================================================
 
     function void print(int unsigned testcase);
-        $display("================================================================");
-        $display("                 TEST PATTERN [%0d] - [%0s]", testcase, tar_graph);
-        $display("================================================================");
-        foreach(inst[i]) begin
-            $display("Inst[%0d]: Op = %0s | Rs = %0d | Rt = %0d | Rd = %0d",
-                    i, inst[i].op.name(), inst[i].rs, inst[i].rt, inst[i].rd);
-        end
-        $display("================================================================");
+        `ifdef PRINT
+            $display("================================================================");
+            $display("                 TEST PATTERN [%0d] - [%0s]", testcase, tar_graph);
+            $display("================================================================");
+            foreach(inst[i]) begin
+                $display("Inst[%0d]: Op = %0s | Rs = %0d | Rt = %0d | Rd = %0d",
+                        i, inst[i].op.name(), inst[i].rs, inst[i].rt, inst[i].rd);
+            end
+            $display("================================================================");
+        `endif
     endfunction
 
     function void pack_input();

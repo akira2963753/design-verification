@@ -43,7 +43,7 @@ module PATTERN (
     //                       Configuration
     //=============================================================
 
-    localparam int unsigned PATTERN_NUM = 1000;
+    localparam int unsigned PATTERN_NUM = 2000;
     localparam realtime CLK_PERIOD = 50.0;
     localparam realtime TIMEOUT = (PATTERN_NUM + 10.0) * CLK_PERIOD * 10.0;
 
