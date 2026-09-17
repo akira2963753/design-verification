@@ -23,7 +23,7 @@ class monitor;
         input mailbox #(mon_txn) mon2scb,
         input int unsigned pattern_num
     );
-    
+
         this.mon_if = mon_if;
         this.mon2scb = mon2scb;
         this.pattern_num = pattern_num;
@@ -58,6 +58,7 @@ class monitor;
                 tr.inst_order = mon_if.monitor_cb.Inst_order_O;
                 tr.ex_cycle = mon_if.monitor_cb.Ex_cycle;
 
+                // 這裡使用 try_put() 而非 put() 是因為怕漏掉 sample 而沒發現
                 if(mon2scb.try_put(tr) == 0) $fatal(1,
                     {"================================================================\n",
                     "             Monitor Mailbox is Full ! ! !\n",
@@ -67,6 +68,5 @@ class monitor;
                 received_num++;
             end
         end
-        // Returning means samples were queued, not that checking is complete.
     endtask
 endclass
