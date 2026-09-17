@@ -9,24 +9,24 @@
 ******************************************************************************/
 
 // Compile these definitions through PATTERN.sv only, not again in file.f.
-`include "./component/vif.sv"
-`include "./component/trans.sv"
+`include "vif.sv"
+`include "trans.sv"
 
-`include "./component/generator.sv"
+`include "generator.sv"
 // input mailbox #(txn) gen2drv [generate constraint-random input to driver]
 // input unsigned pattern_num
 
-`include "./component/driver.sv"
+`include "driver.sv"
 // input virtual vif.driver_mp drv_if [driver interface]
 // input mailbox #(txn) gen2drv, [receive the input data from generator]
 // input int unsigned pattern_num
 
-`include "./component/monitor.sv"
+`include "monitor.sv"
 // input virtual vif.monitor_mp mon_if [monitor interface]
 // input mailbox #(mon_txn) mon2scb [monitor the i/o data and send to scoreboard]
 // input int unsigned pattern_num
 
-`include "./component/scoreboard.sv"
+`include "scoreboard.sv"
 // input mailbox #(mon_txn) mon2scb [receive the i/o data from monitor]
 // input int unsigned pattern_num
 
