@@ -187,8 +187,8 @@ class txn;
         $display("                       TEST PATTERN [%0d]             ", testcase);
         $display("================================================================");
         foreach(inst[i]) begin
-            $display("Inst[%0d]: Op = %0s | Rs = %0d | Rt = %0d | Rd = %0d",
-                    i, inst[i].op.name(), inst[i].rs, inst[i].rt, inst[i].rd);
+            $display("Inst[%0d]: Op = %0s | Rs = %0d | Rt = %0d | Rd = %0d [%0s]",
+                    i, inst[i].op.name(), inst[i].rs, inst[i].rt, inst[i].rd, tar_graph);
         end
         $display("================================================================");
     endfunction
