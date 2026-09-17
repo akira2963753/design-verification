@@ -52,7 +52,7 @@ class driver;
             @(drv_if.driver_cb);
             if(gen2drv.try_get(tr) != 0) begin
                 drive_one(tr);
-                sent_num = sent_num + 1;
+                sent_num++;
             end
             else drv_if.driver_cb.sample_valid <= 1'b0;
         end

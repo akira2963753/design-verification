@@ -21,6 +21,7 @@
 // input mailbox #(txn) gen2drv, [receive the input data from generator]
 // input int unsigned pattern_num
 
+`include "coverage.sv"
 `include "monitor.sv"
 // input virtual vif.monitor_mp mon_if [monitor interface]
 // input mailbox #(mon_txn) mon2scb [monitor the i/o data and send to scoreboard]
@@ -109,6 +110,7 @@ module PATTERN (
         $display("          OISS Environment Completed: %0d Patterns Passed", scb.checked_num);
         $display("                  Checked Property: Ex_cycle");
         $display("================================================================");
+        mon.cov.report();
         $finish;
     end
 
@@ -128,5 +130,7 @@ module PATTERN (
             "                 Environment Timeout ! ! !\n",
             "================================================================"});
     end
+
 endmodule
+
 

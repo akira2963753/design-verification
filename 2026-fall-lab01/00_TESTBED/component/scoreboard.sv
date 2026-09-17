@@ -131,6 +131,6 @@ class scoreboard;
         $display("================================================================");
         $display("             All %0d Ex_cycle Checks Passed", checked_num);
         $display("================================================================");
-        // PATTERN owns the global timeout and simulation termination.
+
     endtask
 endclass

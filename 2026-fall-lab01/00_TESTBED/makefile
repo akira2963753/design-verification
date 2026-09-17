@@ -28,7 +28,8 @@ VCS_RTL = vcs ${TIMESCALE} \
 	${DPI_SOURCE} \
 	+notimingchecks \
 	+define+RTL \
-	+ntb_random_seed=${seed} | tee rtl_sim.log
+	+ntb_random_seed=${seed} \
+	-cm line+branch+tgl+fsm+cond+assert | tee rtl_sim.log
 
 VCS_GATE = vcs ${TIMESCALE} \
 	-full64 \
