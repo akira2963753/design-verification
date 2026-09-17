@@ -22,7 +22,8 @@ VCS_RTL = vcs ${TIMESCALE} \
 	+v2k \
 	-f ${source_file} \
 	+notimingchecks \
-	+define+RTL
+	+define+RTL \
+	+ntb_random_seed=12345
 
 VCS_GATE = vcs ${TIMESCALE} \
 	-full64 \
@@ -31,7 +32,8 @@ VCS_GATE = vcs ${TIMESCALE} \
 	+v2k \
 	-f ${source_file} \
 	+neg_tchk \
-	+define+GATE
+	+define+GATE \
+	+ntb_random_seed=12345
 
 #======================================================
 #                   Design Compiler
