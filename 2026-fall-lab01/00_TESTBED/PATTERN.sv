@@ -30,6 +30,8 @@
 // input mailbox #(mon_txn) mon2scb [receive the i/o data from monitor]
 // input int unsigned pattern_num
 
+`include "coverage.sv"
+
 module PATTERN (
     output logic clk,
     output wire [95:0] Inst_seq_I,
@@ -62,13 +64,16 @@ module PATTERN (
     //                     Environment Objects
     //=============================================================
 
-    // 實例化四個 component 以及兩個 mailbox
+    // Instance 4 components and 3 mailbox
     mailbox #(txn) gen2drv;     // generator to driver
     mailbox #(mon_txn) mon2scb; // monitor to scoreboard
+    mailbox #(mon_txn) mon2cov; // monitor to coverage
+
     generator gen;
     driver drv;
     monitor mon;
     scoreboard scb;
+    coverage cov;
 
     //=============================================================
     //                            Clock
@@ -84,10 +89,12 @@ module PATTERN (
         clk = 1'b0;
         gen2drv = new();
         mon2scb = new();
+        mon2cov = new();
         gen = new(gen2drv, PATTERN_NUM);
         drv = new(tb_if.driver_mp, gen2drv, PATTERN_NUM);
-        mon = new(tb_if.monitor_mp, mon2scb, PATTERN_NUM);
+        mon = new(tb_if.monitor_mp, mon2scb, mon2cov, PATTERN_NUM);
         scb = new(mon2scb, PATTERN_NUM);
+        cov = new(mon2cov, PATTERN_NUM);
 
         $display("================================================================");
         $display("                  OISS Environment Started");
@@ -101,6 +108,7 @@ module PATTERN (
             drv.run();
             mon.run();
             scb.run();
+            cov.run();
         join
 
         @(negedge clk);
@@ -130,5 +138,4 @@ module PATTERN (
     end
 
 endmodule
-
 

@@ -40,11 +40,7 @@ class txn;
     rand bit [5:0] lat[8];
     rand bit [7:0] read_mask[8];
     rand bit [7:0] write_mask[8];
-
-    graph_typ tar_graph;
-
-    bit [95:0] inst_seq;
-    bit [47:0] inst_lat;
+    rand graph_typ tar_graph;
 
     rand bit raw[8][8];
     rand bit war[8][8];
@@ -58,6 +54,9 @@ class txn;
     rand bit [7:0][7:0] chain_edge_inv;
     rand bit [7:0] chain_mask;
 
+    bit [95:0] inst_seq;
+    bit [47:0] inst_lat;
+
     //=============================================================
     //                         Constraints
     //=============================================================
@@ -66,8 +65,7 @@ class txn;
     constraint rw_set_c {
         foreach(inst[i]) {
             if(inst[i].op inside {ADD, SUB, MUL, DIV}) {
-                read_mask[i] == ((8'd1 << inst[i].rs) |
-                    (8'd1 << inst[i].rt));
+                read_mask[i] == ((8'd1 << inst[i].rs) | (8'd1 << inst[i].rt));
                 write_mask[i] == (8'd1 << inst[i].rd);
             }
             else if(inst[i].op == LOAD) {
@@ -79,8 +77,7 @@ class txn;
                 write_mask[i] == '0;
             }
             else if(inst[i].op == BRANCH) {
-                read_mask[i] == ((8'd1 << inst[i].rs) |
-                    (8'd1 << inst[i].rt));
+                read_mask[i] == ((8'd1 << inst[i].rs) | (8'd1 << inst[i].rt));
                 write_mask[i] == '0;
             }
             else {
@@ -154,6 +151,11 @@ class txn;
             $countones(chain_edge) == 6;
             chain_mask == '1;
         }
+    }
+
+    // 先決定 tar_graph 再決定 inst
+    constraint solve_order_c {
+        solve tar_graph before inst;
     }
     
     constraint lat_c {

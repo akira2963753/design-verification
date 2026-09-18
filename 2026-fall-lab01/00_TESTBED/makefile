@@ -1,7 +1,7 @@
 #======================================================
 #         Design Flow MakeFile (Author: Marco)
 #======================================================
-.PHONY: vcs_rtl vcs_gate syn clean_vcs clean_syn
+.PHONY: vcs_rtl vcs_gate
 
 #======================================================
 #              Set your desired file names
@@ -27,7 +27,8 @@ VCS_RTL = vcs ${TIMESCALE} \
 	+notimingchecks \
 	+define+RTL+PRINT \
 	+ntb_random_seed=${seed} \
-	-cm line+branch+tgl+fsm+cond+assert | tee rtl_sim.log
+	-cm line+branch+tgl+fsm+cond+assert \
+	-cm cover | tee rtl_sim.log
 
 VCS_GATE = vcs ${TIMESCALE} \
 	-full64 \
@@ -40,21 +41,11 @@ VCS_GATE = vcs ${TIMESCALE} \
 	+neg_tchk \
 	+define+GATE+PRINT \
 	+ntb_random_seed=${seed} \
-	-cm line+branch+tgl+fsm+cond+assert | tee rtl_sim.log
-
-#======================================================
-#                   Design Compiler
-#======================================================
-DC_shell = dc_shell -f ${syn_tcl} | tee ${syn_log}
+	-cm line+branch+tgl+fsm+cond+assert \
+	-cm cover | tee rtl_sim.log
 
 vcs_rtl:
 	${VCS_RTL}
 
 vcs_gate:
 	${VCS_GATE}
-
-#======================================================
-#                          Clean
-#======================================================
-clean_vcs:
-	rm -rf *.fsdb ./csrc *.log simv* *.sdf.X *.key

@@ -11,7 +11,7 @@
 class generator;
     mailbox #(txn) gen2drv = new;
     int unsigned pattern_num;
-    int unsigned testcase;
+    int unsigned testcase = 0;
 
     function new(
         input mailbox #(txn) gen2drv,
@@ -19,7 +19,6 @@ class generator;
     );
         this.gen2drv = gen2drv;
         this.pattern_num = pattern_num;
-        testcase = 0;
     endfunction
 
     task run();
@@ -27,12 +26,6 @@ class generator;
 
         repeat(pattern_num) begin
             tr = new();
-
-            case($urandom_range(2, 0))
-                0: tr.tar_graph = NO_CHAIN;
-                1: tr.tar_graph = ONE_CHAIN;
-                2: tr.tar_graph = TWO_CHAINS;
-            endcase
 
             if(!tr.randomize()) 
                 $fatal(1, 
