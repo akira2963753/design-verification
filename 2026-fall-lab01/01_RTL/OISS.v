@@ -33,8 +33,8 @@ module OISS (
         input logic [47:0] lat_pack
     );
         case(opcode)
-            3'b000: opcode_latency = lat_pack[5:0];
-            3'b001: opcode_latency = lat_pack[11:6];
+            3'b000: opcode_latency = lat_pack[11:6];
+            3'b001: opcode_latency = lat_pack[5:0];
             3'b010: opcode_latency = lat_pack[17:12];
             3'b011: opcode_latency = lat_pack[23:18];
             3'b100: opcode_latency = lat_pack[29:24];
@@ -102,7 +102,7 @@ module OISS (
         for(ii = 1; ii < NUM_INST; ii = ii + 1) begin
             cur_idx = issue_ord[ii];
             prev_idx = issue_ord[ii-1];
-            issue_gap = start_cyc[prev_idx] + 9'd1;
+            issue_gap = start_cyc[prev_idx];
             dep_ready = 9'd0;
             for(int jj = 0; jj < NUM_INST; jj = jj + 1)
                 if(dep[jj][cur_idx])
@@ -171,7 +171,6 @@ module OISS (
             for(jj = ii + 1; jj < NUM_INST; jj = jj + 1) begin
                 dep_edge[ii][jj] =
                     ((inst_wset[ii] & inst_rset[jj]) != 8'b0) |
-                    ((inst_rset[ii] & inst_wset[jj]) != 8'b0) |
                     ((inst_wset[ii] & inst_wset[jj]) != 8'b0);
             end
 
