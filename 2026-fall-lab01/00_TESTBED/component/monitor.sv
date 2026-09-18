@@ -40,7 +40,8 @@ class monitor;
     //=============================================================
 
     // Start concurrently with the driver, before its first clocking event.
-    // Use an unbounded mailbox so scoreboard work cannot stall sampling.
+    // Consumers process each sample without advancing simulation time.
+    // Never block on a full mailbox and silently miss a later clocking event.
     task run();
         mon_txn tr;
         int unsigned received_num;
@@ -63,14 +64,17 @@ class monitor;
                 tr.inst_order = mon_if.monitor_cb.Inst_order_O;
                 tr.ex_cycle = mon_if.monitor_cb.Ex_cycle;
 
-                // 這裡使用 try_put() 而非 put() 是因為怕漏掉 sample 而沒發現
+                // Report overflow instead of blocking the sampling loop.
                 if(mon2scb.try_put(tr) == 0) $fatal(1,
                     {"================================================================\n",
-                    "             Monitor Mailbox is Full ! ! !\n",
+                    "          Monitor Scoreboard Mailbox is Full ! ! !\n",
                     "================================================================"});
 
-                // Separate unbounded mailbox; both consumers only read tr.
-                mon2cov.put(tr);
+                // Both consumers only read this shared transaction.
+                if(mon2cov.try_put(tr) == 0) $fatal(1,
+                    {"================================================================\n",
+                    "          Monitor Coverage Mailbox is Full ! ! !\n",
+                    "================================================================"});
 
                 sampled_num++;
                 received_num++;

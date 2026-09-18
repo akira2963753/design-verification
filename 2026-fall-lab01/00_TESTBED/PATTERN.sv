@@ -87,9 +87,10 @@ module PATTERN (
 
     initial begin: MAIN_FLOW
         clk = 1'b0;
-        gen2drv = new();
-        mon2cov = new();
-        mon2scb = new();
+        // Bound queued transactions; generator put() waits when full.
+        gen2drv = new(100);
+        mon2cov = new(100);
+        mon2scb = new(100);
         gen = new(gen2drv, PATTERN_NUM);
         drv = new(tb_if.driver_mp, gen2drv, PATTERN_NUM);
         mon = new(tb_if.monitor_mp, mon2scb, mon2cov, PATTERN_NUM);

@@ -9,7 +9,7 @@
 ******************************************************************************/
 
 class generator;
-    mailbox #(txn) gen2drv = new;
+    mailbox #(txn) gen2drv;
     int unsigned pattern_num;
     int unsigned testcase = 0;
 
@@ -34,6 +34,7 @@ class generator;
                     "================================================================"});
 
             tr.print(testcase);
+            // Wait for queue space before generating the next transaction.
             gen2drv.put(tr);
             testcase = testcase + 1;
         end
