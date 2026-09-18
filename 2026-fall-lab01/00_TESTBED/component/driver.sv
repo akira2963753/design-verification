@@ -11,7 +11,6 @@
 class driver;
     virtual vif.driver_mp drv_if;
     mailbox #(txn) gen2drv;
-    mailbox #(txn) drv2cov;
     int unsigned pattern_num;
 
     //=============================================================
@@ -21,13 +20,11 @@ class driver;
     function new(
         input virtual vif.driver_mp drv_if,
         input mailbox #(txn) gen2drv,
-        input mailbox #(txn) drv2cov,
         input int unsigned pattern_num
     );
 
         this.drv_if = drv_if;
         this.gen2drv = gen2drv;
-        this.drv2cov = drv2cov;
         this.pattern_num = pattern_num;
     endfunction
 
@@ -55,7 +52,6 @@ class driver;
             @(drv_if.driver_cb);
             if(gen2drv.try_get(tr) != 0) begin
                 drive_one(tr);
-                drv2cov.put(tr);
                 sent_num++;
             end
             else drv_if.driver_cb.sample_valid <= 1'b0;

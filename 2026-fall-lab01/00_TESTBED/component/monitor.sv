@@ -12,6 +12,7 @@ class monitor;
     virtual vif.monitor_mp mon_if;
 
     mailbox #(mon_txn) mon2scb;
+    mailbox #(mon_txn) mon2cov;
 
     int unsigned pattern_num;
     int unsigned sampled_num;
@@ -23,11 +24,13 @@ class monitor;
     function new(
         input virtual vif.monitor_mp mon_if,
         input mailbox #(mon_txn) mon2scb,
+        input mailbox #(mon_txn) mon2cov,
         input int unsigned pattern_num
     );
 
         this.mon_if = mon_if;
         this.mon2scb = mon2scb;
+        this.mon2cov = mon2cov;
         this.pattern_num = pattern_num;
         this.sampled_num = 0;
     endfunction
@@ -65,6 +68,9 @@ class monitor;
                     {"================================================================\n",
                     "             Monitor Mailbox is Full ! ! !\n",
                     "================================================================"});
+
+                // Separate unbounded mailbox; both consumers only read tr.
+                mon2cov.put(tr);
 
                 sampled_num++;
                 received_num++;

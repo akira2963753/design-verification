@@ -19,12 +19,11 @@
 `include "driver.sv"
 // input virtual vif.driver_mp drv_if [driver interface]
 // input mailbox #(txn) gen2drv, [receive the input data from generator]
-// input mailbox #(txn) drv2cov, [send driven transaction to coverage]
 // input int unsigned pattern_num
 
 `include "monitor.sv"
 // input virtual vif.monitor_mp mon_if [monitor interface]
-// input mailbox #(mon_txn) mon2scb [monitor the i/o data and send to scoreboard]
+// input mailbox #(mon_txn) mon2scb, mon2cov [sampled i/o for both consumers]
 // input int unsigned pattern_num
 
 `include "scoreboard.sv"
@@ -67,7 +66,7 @@ module PATTERN (
 
     // Instance 5 components and 3 mailboxes
     mailbox #(txn) gen2drv;     // generator to driver
-    mailbox #(txn) drv2cov;     // driver to coverage
+    mailbox #(mon_txn) mon2cov; // monitor to coverage
     mailbox #(mon_txn) mon2scb; // monitor to scoreboard
 
     generator gen;
@@ -89,13 +88,13 @@ module PATTERN (
     initial begin: MAIN_FLOW
         clk = 1'b0;
         gen2drv = new();
-        drv2cov = new();
+        mon2cov = new();
         mon2scb = new();
         gen = new(gen2drv, PATTERN_NUM);
-        drv = new(tb_if.driver_mp, gen2drv, drv2cov, PATTERN_NUM);
-        mon = new(tb_if.monitor_mp, mon2scb, PATTERN_NUM);
+        drv = new(tb_if.driver_mp, gen2drv, PATTERN_NUM);
+        mon = new(tb_if.monitor_mp, mon2scb, mon2cov, PATTERN_NUM);
         scb = new(mon2scb, PATTERN_NUM);
-        cov = new(drv2cov, PATTERN_NUM);
+        cov = new(mon2cov, PATTERN_NUM);
 
         $display("================================================================");
         $display("                  OISS Environment Started");

@@ -8,31 +8,19 @@
 *
 ******************************************************************************/
 
-
 class coverage;
-    mailbox #(txn) drv2cov;
+    mailbox #(mon_txn) mon2cov;
     int unsigned pattern_num;
-
-    function new(
-        input mailbox #(txn) drv2cov,
-        input int unsigned pattern_num
-    );
-        this.drv2cov = drv2cov;
-        this.pattern_num = pattern_num;
-
-        // 記得要實例化 covergroup
-        cg_inst = new();
-        cg_same_op = new();
-        cg_one_chain = new();
-    endfunction
+    int unsigned sampled_num;
+    int unsigned skipped_input_num;
+    int unsigned skipped_schedule_num;
 
     //=============================================================
-    //                      Functional Coverage
+    //                     Functional Coverage
     //=============================================================
 
-    // Coverage 1 : 每個 instruction index 都有執行過每個 opcode
-    covergroup cg_inst with function sample(int unsigned index, op_typ op);
-        
+    // Coverage 1: Every opcode at every input position.
+    covergroup cg_inst with function sample(int index, op_typ op);
         coverpoint op {
             bins op_add = {ADD};
             bins op_sub = {SUB};
@@ -43,65 +31,430 @@ class coverage;
             bins op_branch = {BRANCH};
             bins op_jump = {JUMP};
         }
-
         coverpoint index {
             bins b_index[] = {[0:7]};
         }
-
         cross index, op;
     endgroup
 
-    // Coverage 2 : 相同 opcode 的 condition 是否都有發生 (low hit)
-    covergroup cg_same_op with function sample(bit same_flag, op_typ same_op);
-        coverpoint same_flag {
-            bins same = {1};
+    // Coverage 2: Sample ONLY when all eight instructions share an opcode.
+    covergroup cg_same_op with function sample(op_typ op);
+        coverpoint op {
+            bins b_op[] = {[ADD:JUMP]};
         }
-
-        coverpoint same_op{
-            bins same_op_add = {ADD};
-            bins same_sub = {SUB};
-            bins same_mul = {MUL};
-            bins same_div = {DIV};
-            bins same_load = {LOAD};
-            bins same_store = {STORE};
-            bins same_branch = {BRANCH};
-            bins same_jump = {JUMP};
-        }
-
-        cross same_flag, same_op;
     endgroup
 
-    // Coverage 3 : ONE CHAIN 長度是否涵蓋 2 ~ 8 
-    covergroup cg_one_chain with function sample(int unsigned length);
+    // Coverage 3: The three legal graph types and their chain lengths.
+    covergroup cg_graph with function sample(graph_typ graph);
+        coverpoint graph {
+            bins no_chain = {NO_CHAIN};
+            bins one_chain = {ONE_CHAIN};
+            bins two_chains = {TWO_CHAINS};
+        }
+    endgroup
+
+    covergroup cg_one_chain with function sample(int length);
         coverpoint length {
             bins b_len[] = {[2:8]};
         }
     endgroup
 
-    // Coverage 4 : 
+    // The shorter chain uniquely identifies the unordered length pair.
+    covergroup cg_two_chains with function sample(int shorter_length);
+        coverpoint shorter_length {
+            bins len_2_6 = {2};
+            bins len_3_5 = {3};
+            bins len_4_4 = {4};
+        }
+    endgroup
 
+    // Coverage 4: One sample per original pair i < j; bit order is RAW/WAR/WAW.
+    covergroup cg_dependency with function sample(bit [2:0] hazards);
+        coverpoint hazards {
+            bins independent = {3'b000};
+            bins raw_only = {3'b100};
+            bins war_only = {3'b010};
+            bins waw_only = {3'b001};
+            bins raw_war = {3'b110};
+            bins raw_waw = {3'b101};
+            bins war_waw = {3'b011};
+            bins raw_war_waw = {3'b111};
+        }
+    endgroup
+
+    // Coverage 5: Latency of opcodes actually present in the input.
+    // Per-opcode points avoid impossible opcode x latency cross bins.
+    covergroup cg_latency with function sample(op_typ op, int latency);
+        cp_add: coverpoint latency iff(op == ADD) {
+            bins minimum = {1};
+            bins middle[] = {[2:4]};
+            bins maximum = {5};
+        }
+        cp_sub: coverpoint latency iff(op == SUB) {
+            bins minimum = {1};
+            bins middle[] = {[2:4]};
+            bins maximum = {5};
+        }
+        cp_mul: coverpoint latency iff(op == MUL) {
+            bins minimum = {20};
+            bins lower[] = {[21:30]};
+            bins bit_boundary[] = {31, 32};
+            bins upper[] = {[33:39]};
+            bins maximum = {40};
+        }
+        cp_div: coverpoint latency iff(op == DIV) {
+            bins minimum = {30};
+            bins bit_boundary[] = {31, 32};
+            bins upper[] = {[33:49]};
+            bins maximum = {50};
+        }
+        cp_load: coverpoint latency iff(op == LOAD) {
+            bins minimum = {6};
+            bins middle[] = {[7:9]};
+            bins maximum = {10};
+        }
+        cp_store: coverpoint latency iff(op == STORE) {
+            bins minimum = {6};
+            bins middle[] = {[7:9]};
+            bins maximum = {10};
+        }
+        cp_branch: coverpoint latency iff(op == BRANCH) {
+            bins minimum = {2};
+            bins middle = {3};
+            bins maximum = {4};
+        }
+        cp_jump: coverpoint latency iff(op == JUMP) {
+            bins fixed_latency = {1};
+        }
+    endgroup
+
+    // Coverage 6: Input scenarios exercising special operand meanings.
+    // A hit alone does not prove that the DUT decoded the operand correctly.
+    covergroup cg_special_rw with function sample(int scenario);
+        coverpoint scenario {
+            bins store_reads_rd = {0};
+            bins store_does_not_write_rd = {1};
+            bins branch_does_not_write_rd = {2};
+            bins load_does_not_read_address = {3};
+            bins jump_does_not_read = {4};
+            bins jump_does_not_write = {5};
+        }
+    endgroup
+
+    // Coverage 7: Duplicate encodings still represent distinct instructions.
+    covergroup cg_duplicate with function sample(bit duplicate);
+        coverpoint duplicate {
+            bins absent = {0};
+            bins present = {1};
+        }
+    endgroup
+
+    covergroup cg_memory with function sample(op_typ op, int address);
+        coverpoint op {
+            bins load = {LOAD};
+            bins store = {STORE};
+        }
+        coverpoint address {
+            bins minimum = {0};
+            bins middle = {[1:62]};
+            bins maximum = {63};
+        }
+        cross op, address;
+    endgroup
+
+    covergroup cg_memory_pair with function sample(int scenario);
+        coverpoint scenario {
+            bins load_same_address = {0};
+            bins load_different_address = {1};
+            bins load_store_different_address = {2};
+            bins store_store_different_address = {3};
+        }
+    endgroup
+
+    // Coverage 8: Only legal DUT orders achieving the reference minimum.
+    // Reconstruct execution from the SPEC; these are not internal DUT probes.
+    covergroup cg_schedule with function sample(
+        int cycle_count, bit improved, bit last_not_latest,
+        bit same_op_overlap, bit stalled, bit ready_at_finish
+    );
+        coverpoint cycle_count {
+            bins minimum = {8};
+            bins lower = {[9:255]};
+            bins ninth_bit = {[256:399]};
+            bins maximum = {400};
+        }
+        coverpoint improved {
+            bins no = {0};
+            bins yes = {1};
+        }
+        coverpoint last_not_latest {
+            bins no = {0};
+            bins yes = {1};
+        }
+        coverpoint same_op_overlap {
+            bins no = {0};
+            bins yes = {1};
+        }
+        coverpoint stalled {
+            bins no = {0};
+            bins yes = {1};
+        }
+        coverpoint ready_at_finish {
+            bins no = {0};
+            bins yes = {1};
+        }
+    endgroup
+
+    //=============================================================
+    //                         Constructor
+    //=============================================================
+
+    function new(input mailbox #(mon_txn) mon2cov, input int unsigned pattern_num);
+        this.mon2cov = mon2cov;
+        this.pattern_num = pattern_num;
+        sampled_num = 0;
+        skipped_input_num = 0;
+        skipped_schedule_num = 0;
+        cg_inst = new();
+        cg_same_op = new();
+        cg_graph = new();
+        cg_one_chain = new();
+        cg_two_chains = new();
+        cg_dependency = new();
+        cg_latency = new();
+        cg_special_rw = new();
+        cg_duplicate = new();
+        cg_memory = new();
+        cg_memory_pair = new();
+        cg_schedule = new();
+    endfunction
+
+    //=============================================================
+    //                       Input Decoding
+    //=============================================================
+
+    // Reuse txn as a data container; never randomize it or copy generator masks.
+    function automatic bit decode_input(input mon_txn sample_tr, output txn tr);
+        int chain_count, member_count, incoming, outgoing;
+        tr = new();
+        if($isunknown({sample_tr.inst_seq, sample_tr.inst_lat})) return 0;
+        for(int i = 0; i < 8; i++) begin
+            tr.inst[i] = inst_typ'(sample_tr.inst_seq[i*12 +: 12]);
+            tr.lat[i] = sample_tr.inst_lat[i*6 +: 6];
+            case(tr.inst[i].op)
+                ADD, SUB, MUL, DIV: begin
+                    tr.read_mask[i] = (8'b1 << tr.inst[i].rs) | (8'b1 << tr.inst[i].rt);
+                    tr.write_mask[i] = 8'b1 << tr.inst[i].rd;
+                end
+                LOAD: tr.write_mask[i] = 8'b1 << tr.inst[i].rd;
+                STORE: tr.read_mask[i] = 8'b1 << tr.inst[i].rd;
+                BRANCH: tr.read_mask[i] = (8'b1 << tr.inst[i].rs) | (8'b1 << tr.inst[i].rt);
+                default: begin
+                    tr.read_mask[i] = '0;
+                    tr.write_mask[i] = '0;
+                end
+            endcase
+        end
+        if(!(tr.lat[ADD] inside {[1:5]}) || !(tr.lat[SUB] inside {[1:5]}) ||
+           !(tr.lat[MUL] inside {[20:40]}) || !(tr.lat[DIV] inside {[30:50]}) ||
+           !(tr.lat[LOAD] inside {[6:10]}) || !(tr.lat[STORE] inside {[6:10]}) ||
+           !(tr.lat[BRANCH] inside {[2:4]}) || tr.lat[JUMP] != 1) return 0;
+
+        for(int i = 0; i < 8; i++) begin
+            for(int j = i + 1; j < 8; j++) begin
+                tr.raw[i][j] = |(tr.write_mask[i] & tr.read_mask[j]);
+                tr.war[i][j] = |(tr.read_mask[i] & tr.write_mask[j]);
+                tr.waw[i][j] = |(tr.write_mask[i] & tr.write_mask[j]);
+                tr.dep_edge[i][j] = tr.raw[i][j] | tr.war[i][j] | tr.waw[i][j];
+                if((tr.inst[i].op inside {LOAD, STORE}) &&
+                   (tr.inst[j].op inside {LOAD, STORE}) &&
+                   (tr.inst[i].op == STORE || tr.inst[j].op == STORE) &&
+                   {tr.inst[i].rs, tr.inst[i].rt} == {tr.inst[j].rs, tr.inst[j].rt}) return 0;
+            end
+        end
+
+        // Find all reachable pairs, then remove redundant transitive edges.
+        tr.reach = tr.dep_edge;
+        for(int k = 0; k < 8; k++)
+            for(int i = 0; i < 8; i++)
+                for(int j = 0; j < 8; j++)
+                    tr.reach[i][j] |= tr.reach[i][k] & tr.reach[k][j];
+        tr.chain_edge = tr.dep_edge;
+        for(int i = 0; i < 8; i++)
+            for(int j = 0; j < 8; j++)
+                for(int k = 0; k < 8; k++)
+                    if(tr.reach[i][k] && tr.reach[k][j]) tr.chain_edge[i][j] = 0;
+
+        chain_count = 0;
+        member_count = 0;
+        for(int i = 0; i < 8; i++) begin
+            incoming = 0;
+            outgoing = 0;
+            for(int j = 0; j < 8; j++) begin
+                incoming += int'(tr.chain_edge[j][i]);
+                outgoing += int'(tr.chain_edge[i][j]);
+            end
+            if(incoming > 1 || outgoing > 1) return 0;
+            if(incoming == 0 && outgoing == 1) chain_count++;
+            tr.chain_mask[i] = (incoming != 0 || outgoing != 0);
+            if(tr.chain_mask[i]) member_count++;
+        end
+        if(chain_count == 0) tr.tar_graph = NO_CHAIN;
+        else if(chain_count == 1) tr.tar_graph = ONE_CHAIN;
+        else if(chain_count == 2 && member_count == 8) tr.tar_graph = TWO_CHAINS;
+        else return 0;
+        return 1;
+    endfunction
+
+    //=============================================================
+    //                       Input Sampling
+    //=============================================================
+
+    function automatic void sample_input(input txn tr);
+        bit same_flag, duplicate, incoming;
+        bit [7:0] fake_reads, fake_write;
+        int shorter_length, length;
+        same_flag = 1;
+        duplicate = 0;
+        for(int i = 0; i < 8; i++) begin
+            cg_inst.sample(i, tr.inst[i].op);
+            cg_latency.sample(tr.inst[i].op, int'(tr.lat[tr.inst[i].op]));
+            same_flag &= (tr.inst[i].op == tr.inst[0].op);
+            if(tr.inst[i].op inside {LOAD, STORE}) cg_memory.sample(tr.inst[i].op, int'({tr.inst[i].rs, tr.inst[i].rt}));
+            for(int j = i + 1; j < 8; j++) begin
+                cg_dependency.sample({tr.raw[i][j], tr.war[i][j], tr.waw[i][j]});
+                duplicate |= (tr.inst[i] == tr.inst[j]);
+                if(tr.inst[i].op == LOAD && tr.inst[j].op == LOAD) begin
+                    if({tr.inst[i].rs, tr.inst[i].rt} == {tr.inst[j].rs, tr.inst[j].rt}) cg_memory_pair.sample(0);
+                    else cg_memory_pair.sample(1);
+                end
+                else if(tr.inst[i].op == STORE && tr.inst[j].op == STORE) cg_memory_pair.sample(3);
+                else if((tr.inst[i].op inside {LOAD, STORE}) && (tr.inst[j].op inside {LOAD, STORE})) cg_memory_pair.sample(2);
+            end
+
+            // Matching ignored fields must not create a new dependency path.
+            fake_reads = (8'b1 << tr.inst[i].rs) | (8'b1 << tr.inst[i].rt);
+            fake_write = 8'b1 << tr.inst[i].rd;
+            for(int j = 0; j < 8; j++) begin
+                if(j < i && tr.inst[i].op == STORE && tr.raw[j][i]) cg_special_rw.sample(0);
+                if(j > i && !tr.reach[i][j] && (|(fake_write & tr.read_mask[j]))) begin
+                    if(tr.inst[i].op == STORE) cg_special_rw.sample(1);
+                    if(tr.inst[i].op == BRANCH) cg_special_rw.sample(2);
+                    if(tr.inst[i].op == JUMP) cg_special_rw.sample(5);
+                end
+                if(j < i && !tr.reach[j][i] && (|(tr.write_mask[j] & fake_reads))) begin
+                    if(tr.inst[i].op == LOAD) cg_special_rw.sample(3);
+                    if(tr.inst[i].op == JUMP) cg_special_rw.sample(4);
+                end
+            end
+        end
+        if(same_flag) cg_same_op.sample(tr.inst[0].op);
+        cg_duplicate.sample(duplicate);
+        cg_graph.sample(tr.tar_graph);
+        if(tr.tar_graph == ONE_CHAIN) cg_one_chain.sample($countones(tr.chain_mask));
+        if(tr.tar_graph == TWO_CHAINS) begin
+            shorter_length = 8;
+            for(int i = 0; i < 8; i++) begin
+                incoming = 0;
+                for(int j = 0; j < 8; j++) incoming |= tr.chain_edge[j][i];
+                if(!incoming && tr.chain_mask[i]) begin
+                    length = 1 + $countones(tr.reach[i]);
+                    if(length < shorter_length) shorter_length = length;
+                end
+            end
+            cg_two_chains.sample(shorter_length);
+        end
+    endfunction
+
+    //=============================================================
+    //                     Schedule Sampling
+    //=============================================================
+
+    function automatic void sample_schedule(input mon_txn sample_tr, input txn tr);
+        int start_time[8], finish_time[8], original_finish[8];
+        int order[8];
+        int next_issue, ready_time, completion, original_cycle, best_cycle, id;
+        bit [7:0] issued;
+        bit stalled, ready_at_finish, same_op_overlap;
+        if($isunknown({sample_tr.inst_order, sample_tr.ex_cycle})) begin
+            skipped_schedule_num++;
+            return;
+        end
+        issued = 0;
+        next_issue = 0;
+        completion = 0;
+        stalled = 0;
+        ready_at_finish = 0;
+        same_op_overlap = 0;
+        for(int k = 0; k < 8; k++) begin
+            id = int'(sample_tr.inst_order[k*3 +: 3]);
+            order[k] = id;
+            if(issued[id]) begin
+                skipped_schedule_num++;
+                return;
+            end
+            ready_time = 0;
+            for(int j = 0; j < 8; j++) begin
+                if(tr.dep_edge[j][id]) begin
+                    if(!issued[j]) begin
+                        skipped_schedule_num++;
+                        return;
+                    end
+                    if(finish_time[j] > ready_time) ready_time = finish_time[j];
+                end
+            end
+            start_time[id] = (ready_time > next_issue)? ready_time : next_issue;
+            stalled |= (start_time[id] > next_issue);
+            ready_at_finish |= (ready_time > 0 && start_time[id] == ready_time);
+            finish_time[id] = start_time[id] + int'(tr.lat[tr.inst[id].op]);
+            if(finish_time[id] > completion) completion = finish_time[id];
+            next_issue = start_time[id] + 1;
+            issued[id] = 1;
+        end
+
+        best_cycle = oiss_ref_pkg::reference_cycle(sample_tr.inst_seq, sample_tr.inst_lat);
+        if(completion != best_cycle || int'(sample_tr.ex_cycle) != best_cycle) begin
+            skipped_schedule_num++;
+            return;
+        end
+
+        // Original order is topological because all dependencies point i -> j.
+        next_issue = 0;
+        original_cycle = 0;
+        for(int i = 0; i < 8; i++) begin
+            ready_time = next_issue;
+            for(int j = 0; j < i; j++)
+                if(tr.dep_edge[j][i] && original_finish[j] > ready_time) ready_time = original_finish[j];
+            original_finish[i] = ready_time + int'(tr.lat[tr.inst[i].op]);
+            if(original_finish[i] > original_cycle) original_cycle = original_finish[i];
+            next_issue = ready_time + 1;
+            for(int j = i + 1; j < 8; j++) begin
+                if(tr.inst[i].op == tr.inst[j].op &&
+                   start_time[i] < finish_time[j] && start_time[j] < finish_time[i]) same_op_overlap = 1;
+            end
+        end
+        cg_schedule.sample(best_cycle, best_cycle < original_cycle,
+            finish_time[order[7]] < completion, same_op_overlap, stalled, ready_at_finish);
+    endfunction
 
     //=============================================================
     //                          Run Task
     //=============================================================
 
     task run();
+        mon_txn sample_tr;
         txn tr;
-        bit same_flag;
-        op_typ same_op;
-
         repeat(pattern_num) begin
-            drv2cov.get(tr);
-            for(int i = 0; i < 8; i++) cg_inst.sample(i, tr.inst[i].op);
-
-            same_op = tr.inst[0].op;
-            same_flag = 1'b1;
-            for(int i = 1; i < 8; i++) same_flag &= (tr.inst[i].op == same_op);
-            cg_same_op.sample(same_flag, same_op);
-
-            if(tr.tar_graph == ONE_CHAIN) cg_one_chain.sample($countones(tr.chain_mask));
-
+            mon2cov.get(sample_tr);
+            if(decode_input(sample_tr, tr)) begin
+                sample_input(tr);
+                sample_schedule(sample_tr, tr);
+                sampled_num++;
+            end
+            else skipped_input_num++;
         end
+        $display("Coverage: sampled = %0d, skipped inputs = %0d, skipped schedules = %0d",
+            sampled_num, skipped_input_num, skipped_schedule_num);
+        $display("Coverage skips are diagnostic counts, not scoreboard checks.");
     endtask
-
 endclass
