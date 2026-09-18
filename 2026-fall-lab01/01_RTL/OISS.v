@@ -1,3 +1,14 @@
+/******************************************************************************
+* Copyright (C) 2026 Marco
+*
+* File Name:    OISS.v
+* Project:      NCTU-EE IC Lab Fall 2026 Lab01
+* Module:       OISS
+* Author:       Marco
+*
+* Out-of-order instruction scheduling solver (combinational).
+******************************************************************************/
+
 module OISS (
     input  [95:0] Inst_seq_I,
     input  [47:0] Inst_latency_I,
@@ -5,228 +16,202 @@ module OISS (
     output [8:0]  Ex_cycle
 );
 
-    wire [11:0] Inst_seq_I_split [0:7];
-    wire [5:0] opcode_latency [0:7];
-    wire [5:0] inst_lat [0:7];
-    wire [2:0] opcode [0:7];
-    wire [2:0] rs [0:7];
-    wire [2:0] rt [0:7];
-    wire [2:0] rd [0:7];
-    wire writes_rd [0:7];
-    wire reads_rs_rt [0:7];
-    wire is_store [0:7];
-    wire dep [0:7][0:7];
+    localparam int NUM_INST = 8;
+    localparam int NUM_PERM = 40320;
 
-    genvar i, j, op;
-    generate
-        for (op = 0; op < 8; op = op + 1) begin : gen_op_lat
-            // Each input entry specifies the latency of one opcode.
-            assign opcode_latency[op] = Inst_latency_I[op*6 +: 6];
-        end
+    logic [11:0] inst_word [0:NUM_INST-1];
+    logic [5:0]  inst_lat  [0:NUM_INST-1];
+    logic [7:0]  inst_rset [0:NUM_INST-1];
+    logic [7:0]  inst_wset [0:NUM_INST-1];
+    logic        dep_edge  [0:NUM_INST-1][0:NUM_INST-1];
 
-        for (i = 0; i < 8; i = i + 1) begin : gen_decode
-            assign Inst_seq_I_split[i] = Inst_seq_I[i*12 +: 12];
+    logic [23:0] best_order;
+    logic [8:0]  best_cycle;
 
-            assign opcode[i] = Inst_seq_I_split[i][11:9];
-            // Instructions with the same opcode share the same latency.
-            assign inst_lat[i] = opcode_latency[opcode[i]];
-            assign rs[i] = Inst_seq_I_split[i][8:6];
-            assign rt[i] = Inst_seq_I_split[i][5:3];
-            assign rd[i] = Inst_seq_I_split[i][2:0];
-
-            assign writes_rd[i] = !opcode[i][2] | (opcode[i] == 3'b100);
-            assign reads_rs_rt[i] = !opcode[i][2] | (opcode[i] == 3'b110);
-            assign is_store[i] = (opcode[i] == 3'b101);
-        end
-
-        for (i = 0; i < 8; i = i + 1) begin : gen_dep_row
-            for (j = 0; j < 8; j = j + 1) begin : gen_dep_col
-                if (i < j) begin : gen_forward
-                    // dep[i][j] means instruction i must finish before j starts.
-                    // Register zero is a normal register in this lab.
-                    // Share the rd comparison across WAW and STORE hazards.
-                    assign dep[i][j] =
-                        (writes_rd[i] & reads_rs_rt[j] &
-                         ((rd[i] == rs[j]) | (rd[i] == rt[j]))) |
-                        (writes_rd[j] & reads_rs_rt[i] &
-                         ((rd[j] == rs[i]) | (rd[j] == rt[i]))) |
-                        ((rd[i] == rd[j]) &
-                         ((writes_rd[i] & writes_rd[j]) |
-                          (writes_rd[i] & is_store[j]) |
-                          (is_store[i] & writes_rd[j])));
-                end else begin : gen_unused
-                    assign dep[i][j] = 1'b0;
-                end
-            end
-        end
-    endgenerate
-
-    // Label each chain by its earliest instruction. The specified input
-    // graphs are disjoint chains (possibly with redundant forward edges).
-    reg [2:0] root [0:7];
-    reg [7:0] connected;
-    reg [2:0] root_a;
-    reg [7:0] member_a;
-    reg [3:0] length_a;
-    reg b_is_chain;
-    integer r, p;
-    always @* begin
-        connected = 8'b0;
-        for (r = 0; r < 8; r = r + 1) begin
-            root[r] = r;
-            for (p = 0; p < r; p = p + 1) begin
-                if (dep[p][r])
-                    root[r] = root[p];
-            end
-            for (p = 0; p < 8; p = p + 1)
-                connected[r] = connected[r] | dep[r][p] | dep[p][r];
-        end
-        root_a = 3'd0;
-        for (r = 7; r >= 0; r = r - 1)
-            if (connected[r]) root_a = root[r];
-
-        member_a = 8'b0;
-        length_a = 4'd0;
-        b_is_chain = 1'b0;
-        for (r = 0; r < 8; r = r + 1) begin
-            member_a[r] = connected[r] && (root[r] == root_a);
-            length_a = length_a + {3'b0, member_a[r]};
-            b_is_chain = b_is_chain | (connected[r] && !member_a[r]);
-        end
-    end
-
-    // Pairwise latency comparisons run in parallel with chain grouping.
-    // A uses original index order. B uses index order for a second chain,
-    // or descending latency (then ascending index) for independent jobs.
-    wire before_latency [0:7][0:7];
-    reg [3:0] rank_a [0:7];
-    reg [3:0] rank_b [0:7];
-    reg [2:0] seq_a_index [0:7];
-    reg [2:0] seq_b_index [0:7];
-    wire [5:0] seq_a_lat [0:7];
-    wire [5:0] seq_b_lat [0:7];
-    genvar lane, peer;
-    generate
-        for (lane = 0; lane < 8; lane = lane + 1) begin : gen_latency_rank
-            for (peer = 0; peer < 8; peer = peer + 1) begin : gen_before
-                assign before_latency[lane][peer] =
-                    (inst_lat[lane] > inst_lat[peer]) |
-                    ((inst_lat[lane] == inst_lat[peer]) && (lane < peer));
-            end
-            assign seq_a_lat[lane] = inst_lat[seq_a_index[lane]];
-            assign seq_b_lat[lane] = inst_lat[seq_b_index[lane]];
-        end
-    endgenerate
-
-    integer u, v, slot;
-    always @* begin
-        for (u = 0; u < 8; u = u + 1) begin
-            rank_a[u] = 4'd0;
-            rank_b[u] = 4'd0;
-            for (v = 0; v < 8; v = v + 1) begin
-                rank_a[u] = rank_a[u] + {3'b0, (member_a[v] && (v < u))};
-                rank_b[u] = rank_b[u] +
-                    {3'b0, (!member_a[v] &&
-                     (b_is_chain ? (v < u) : before_latency[v][u]))};
-            end
-        end
-        // Mask-and-OR extraction gives each valid slot exactly one source.
-        // Unused slots are zero and cannot cause out-of-range array reads.
-        for (slot = 0; slot < 8; slot = slot + 1) begin
-            seq_a_index[slot] = 3'd0;
-            seq_b_index[slot] = 3'd0;
-            for (u = 0; u < 8; u = u + 1) begin
-                if (member_a[u] && (rank_a[u] == slot))
-                    seq_a_index[slot] = seq_a_index[slot] | u[2:0];
-                if (!member_a[u] && (rank_b[u] == slot))
-                    seq_b_index[slot] = seq_b_index[slot] | u[2:0];
-            end
-        end
-    end
-
-    function integer ones;
-        input integer value;
-        integer bit_pos;
-        begin
-            ones = 0;
-            for (bit_pos = 0; bit_pos < 9; bit_pos = bit_pos + 1)
-                ones = ones + ((value >> bit_pos) & 1);
-        end
+    function automatic logic [5:0] opcode_latency(
+        input logic [2:0] opcode,
+        input logic [47:0] lat_pack
+    );
+        case(opcode)
+            3'b000: opcode_latency = lat_pack[5:0];
+            3'b001: opcode_latency = lat_pack[11:6];
+            3'b010: opcode_latency = lat_pack[17:12];
+            3'b011: opcode_latency = lat_pack[23:18];
+            3'b100: opcode_latency = lat_pack[29:24];
+            3'b101: opcode_latency = lat_pack[35:30];
+            3'b110: opcode_latency = lat_pack[41:36];
+            default: opcode_latency = lat_pack[47:42];
+        endcase
     endfunction
 
-    // Enumerate all 256 fixed interleavings, sharing identical prefixes.
-    // Heap node 1 is empty, left appends B, right appends A. Nodes 256..511
-    // are complete eight-instruction orders. All node indices are constants.
-    wire [8:0] next_issue [1:511];
-    wire [8:0] finish_a [1:511];
-    wire [8:0] finish_b [1:511];
-    wire [8:0] max_finish [1:511];
-    assign next_issue[1] = 9'd0;
-    assign finish_a[1] = 9'd0;
-    assign finish_b[1] = 9'd0;
-    assign max_finish[1] = 9'd0;
-    genvar depth, node;
-    generate
-        for (depth = 1; depth <= 8; depth = depth + 1) begin : gen_depth
-            for (node = (1 << depth); node < (1 << (depth+1)); node = node + 1) begin : gen_prefix
-                localparam PARENT = node / 2;
-                localparam USED_A = ones(PARENT) - 1;
-                localparam USED_B = depth - 1 - USED_A;
-                wire [8:0] ready_time;
-                wire [8:0] start_time;
-                wire [8:0] end_time;
-                if ((node % 2) == 1) begin : gen_a
-                    assign ready_time = finish_a[PARENT];
-                    assign end_time = start_time + {3'b0, seq_a_lat[USED_A]};
-                    assign finish_a[node] = end_time;
-                    assign finish_b[node] = finish_b[PARENT];
-                end else begin : gen_b
-                    assign ready_time = b_is_chain ? finish_b[PARENT] : 9'd0;
-                    assign end_time = start_time + {3'b0, seq_b_lat[USED_B]};
-                    assign finish_a[node] = finish_a[PARENT];
-                    assign finish_b[node] = end_time;
+    function automatic logic [7:0] inst_read_set(input logic [11:0] word);
+        logic [2:0] opcode;
+        logic [2:0] rs;
+        logic [2:0] rt;
+        logic [2:0] rd;
+        opcode = word[11:9];
+        rs = word[8:6];
+        rt = word[5:3];
+        rd = word[2:0];
+        inst_read_set = 8'b0;
+        case(opcode)
+            3'b000, 3'b001, 3'b010, 3'b011:
+                inst_read_set = (8'b1 << rs) | (8'b1 << rt);
+            3'b101:
+                inst_read_set = 8'b1 << rd;
+            3'b110:
+                inst_read_set = (8'b1 << rs) | (8'b1 << rt);
+            default:
+                inst_read_set = 8'b0;
+        endcase
+    endfunction
+
+    function automatic logic [7:0] inst_write_set(input logic [11:0] word);
+        logic [2:0] opcode;
+        logic [2:0] rd;
+        opcode = word[11:9];
+        rd = word[2:0];
+        inst_write_set = 8'b0;
+        if(opcode <= 3'b100)
+            inst_write_set = 8'b1 << rd;
+    endfunction
+
+    function automatic logic [8:0] eval_issue_cycles(
+        input logic [2:0] issue_ord [0:NUM_INST-1],
+        input logic [5:0] lat       [0:NUM_INST-1],
+        input logic       dep       [0:NUM_INST-1][0:NUM_INST-1]
+    );
+        logic [8:0] start_cyc [0:NUM_INST-1];
+        logic [8:0] finish_cyc [0:NUM_INST-1];
+        logic [8:0] issue_gap;
+        logic [8:0] dep_ready;
+        logic [8:0] max_finish;
+        logic [2:0] cur_idx;
+        logic [2:0] prev_idx;
+        int         ii;
+
+        for(ii = 0; ii < NUM_INST; ii = ii + 1) begin
+            start_cyc[ii] = 9'd0;
+            finish_cyc[ii] = 9'd0;
+        end
+
+        cur_idx = issue_ord[0];
+        start_cyc[cur_idx] = 9'd0;
+        finish_cyc[cur_idx] = lat[cur_idx];
+
+        for(ii = 1; ii < NUM_INST; ii = ii + 1) begin
+            cur_idx = issue_ord[ii];
+            prev_idx = issue_ord[ii-1];
+            issue_gap = start_cyc[prev_idx] + 9'd1;
+            dep_ready = 9'd0;
+            for(int jj = 0; jj < NUM_INST; jj = jj + 1)
+                if(dep[jj][cur_idx])
+                    dep_ready = (finish_cyc[jj] > dep_ready)? finish_cyc[jj] : dep_ready;
+            start_cyc[cur_idx] = (issue_gap > dep_ready)? issue_gap : dep_ready;
+            finish_cyc[cur_idx] = start_cyc[cur_idx] + lat[cur_idx];
+        end
+
+        max_finish = 9'd0;
+        for(ii = 0; ii < NUM_INST; ii = ii + 1)
+            max_finish = (finish_cyc[ii] > max_finish)? finish_cyc[ii] : max_finish;
+
+        eval_issue_cycles = max_finish;
+    endfunction
+
+    function automatic logic [23:0] pack_order(input logic [2:0] ord [0:NUM_INST-1]);
+        pack_order = {
+            ord[7], ord[6], ord[5], ord[4],
+            ord[3], ord[2], ord[1], ord[0]
+        };
+    endfunction
+
+    function automatic logic order_respects_deps(
+        input logic [2:0] issue_ord [0:NUM_INST-1],
+        input logic       dep       [0:NUM_INST-1][0:NUM_INST-1]
+    );
+        int pos_table [0:NUM_INST-1];
+        int ii;
+        int jj;
+        order_respects_deps = 1'b1;
+        for(ii = 0; ii < NUM_INST; ii = ii + 1)
+            pos_table[ii] = 0;
+        for(ii = 0; ii < NUM_INST; ii = ii + 1)
+            pos_table[issue_ord[ii]] = ii;
+        for(ii = 0; ii < NUM_INST; ii = ii + 1)
+            for(jj = ii + 1; jj < NUM_INST; jj = jj + 1)
+                if(dep[ii][jj] && (pos_table[ii] >= pos_table[jj]))
+                    order_respects_deps = 1'b0;
+    endfunction
+
+    always_comb begin
+        int         perm_idx;
+        int         perm_rem;
+        int         pick_slot;
+        int         fact_div;
+        int         rem_pos;
+        logic [2:0] rem_list [0:NUM_INST-1];
+        logic [2:0] cur_order [0:NUM_INST-1];
+        logic [8:0] cur_cycle;
+        int         ii;
+        int         jj;
+        int         kk;
+
+        for(ii = 0; ii < NUM_INST; ii = ii + 1) begin
+            inst_word[ii] = Inst_seq_I[ii*12 +: 12];
+            inst_lat[ii] = opcode_latency(inst_word[ii][11:9], Inst_latency_I);
+            inst_rset[ii] = inst_read_set(inst_word[ii]);
+            inst_wset[ii] = inst_write_set(inst_word[ii]);
+        end
+
+        for(ii = 0; ii < NUM_INST; ii = ii + 1)
+            for(jj = 0; jj < NUM_INST; jj = jj + 1)
+                dep_edge[ii][jj] = 1'b0;
+
+        for(ii = 0; ii < NUM_INST; ii = ii + 1)
+            for(jj = ii + 1; jj < NUM_INST; jj = jj + 1) begin
+                dep_edge[ii][jj] =
+                    ((inst_wset[ii] & inst_rset[jj]) != 8'b0) |
+                    ((inst_rset[ii] & inst_wset[jj]) != 8'b0) |
+                    ((inst_wset[ii] & inst_wset[jj]) != 8'b0);
+            end
+
+        best_cycle = 9'd511;
+        best_order = 24'b0;
+
+        for(perm_idx = 0; perm_idx < NUM_PERM; perm_idx = perm_idx + 1) begin
+            perm_rem = perm_idx;
+            for(ii = 0; ii < NUM_INST; ii = ii + 1)
+                rem_list[ii] = ii[2:0];
+
+            fact_div = 5040;
+            for(kk = 0; kk < NUM_INST; kk = kk + 1) begin
+                pick_slot = perm_rem / fact_div;
+                cur_order[kk] = rem_list[pick_slot];
+                for(rem_pos = pick_slot; rem_pos < NUM_INST - kk - 1; rem_pos = rem_pos + 1)
+                    rem_list[rem_pos] = rem_list[rem_pos + 1];
+                perm_rem = perm_rem % fact_div;
+                case(kk)
+                    0: fact_div = 720;
+                    1: fact_div = 120;
+                    2: fact_div = 24;
+                    3: fact_div = 6;
+                    4: fact_div = 2;
+                    5: fact_div = 1;
+                    default: fact_div = 1;
+                endcase
+            end
+
+            if(order_respects_deps(cur_order, dep_edge)) begin
+                cur_cycle = eval_issue_cycles(cur_order, inst_lat, dep_edge);
+                if(cur_cycle < best_cycle) begin
+                    best_cycle = cur_cycle;
+                    best_order = pack_order(cur_order);
                 end
-                assign start_time = (next_issue[PARENT] >= ready_time) ?
-                                    next_issue[PARENT] : ready_time;
-                assign next_issue[node] = start_time + 9'd1;
-                assign max_finish[node] = (max_finish[PARENT] >= end_time) ?
-                                         max_finish[PARENT] : end_time;
             end
         end
-    endgenerate
+    end
 
-    // Balanced eight-level minimum tree. Equal costs choose the left leaf.
-    // A legal schedule is at most 400 cycles; 511 excludes invalid leaves.
-    wire [8:0] best_cycle [1:511];
-    wire [7:0] best_mask [1:511];
-    generate
-        for (node = 256; node < 512; node = node + 1) begin : gen_candidate
-            localparam [3:0] COUNT_A = ones(node) - 1;
-            assign best_cycle[node] = (length_a == COUNT_A) ? max_finish[node] : 9'd511;
-            assign best_mask[node] = node - 256;
-        end
-        for (node = 1; node < 256; node = node + 1) begin : gen_minimum
-            wire choose_left;
-            assign choose_left = best_cycle[2*node] <= best_cycle[2*node+1];
-            assign best_cycle[node] = choose_left ? best_cycle[2*node] : best_cycle[2*node+1];
-            assign best_mask[node] = choose_left ? best_mask[2*node] : best_mask[2*node+1];
-        end
-    endgenerate
-    assign Ex_cycle = best_cycle[1];
+    assign Inst_order_O = best_order;
+    assign Ex_cycle = best_cycle;
 
-    // Decode the winning mask only once. Slot zero occupies output [2:0].
-    wire [3:0] count_a [0:8];
-    wire [3:0] count_b [0:8];
-    assign count_a[0] = 4'd0;
-    assign count_b[0] = 4'd0;
-    generate
-        for (lane = 0; lane < 8; lane = lane + 1) begin : gen_output
-            wire take_a;
-            assign take_a = best_mask[1][7-lane];
-            assign count_a[lane+1] = count_a[lane] + {3'b0, take_a};
-            assign count_b[lane+1] = count_b[lane] + {3'b0, !take_a};
-            assign Inst_order_O[lane*3 +: 3] = take_a ?
-                seq_a_index[count_a[lane][2:0]] : seq_b_index[count_b[lane][2:0]];
-        end
-    endgenerate
 endmodule
