@@ -10,21 +10,20 @@
 
 
 class coverage;
-    mailbox #(mon_txn) mon2cov;
+    mailbox #(txn) drv2cov;
     int unsigned pattern_num;
 
-    inst_typ inst[8];
-
     function new(
-        input mailbox #(mon_txn) mon2cov,
+        input mailbox #(txn) drv2cov,
         input int unsigned pattern_num
     );
-        this.mon2cov = mon2cov;
+        this.drv2cov = drv2cov;
         this.pattern_num = pattern_num;
 
         // 記得要實例化 covergroup
         cg_inst = new();
         cg_same_op = new();
+        cg_one_chain = new();
     endfunction
 
     //=============================================================
@@ -46,13 +45,13 @@ class coverage;
         }
 
         coverpoint index {
-            bins indices[] = {[0:7]};
+            bins b_index[] = {[0:7]};
         }
 
         cross index, op;
     endgroup
 
-    // Coverage 2 : 相同 opcode 的 condition
+    // Coverage 2 : 相同 opcode 的 condition 是否都有發生 (low hit)
     covergroup cg_same_op with function sample(bit same_flag, op_typ same_op);
         coverpoint same_flag {
             bins same = {1};
@@ -72,8 +71,14 @@ class coverage;
         cross same_flag, same_op;
     endgroup
 
-    // Coverage 3 ...
+    // Coverage 3 : ONE CHAIN 長度是否涵蓋 2 ~ 8 
+    covergroup cg_one_chain with function sample(int unsigned length);
+        coverpoint length {
+            bins b_len[] = {[2:8]};
+        }
+    endgroup
 
+    // Coverage 4 : 
 
 
     //=============================================================
@@ -81,20 +86,20 @@ class coverage;
     //=============================================================
 
     task run();
-        mon_txn tr;
+        txn tr;
         bit same_flag;
         op_typ same_op;
 
         repeat(pattern_num) begin
-            mon2cov.get(tr);
-            // Unpack each 12-bit instruction into its packed struct using type cast
-            for(int i = 0; i < 8; i++) inst[i] = inst_typ'(tr.inst_seq[i*12 +: 12]);
-            for(int i = 0; i < 8; i++) cg_inst.sample(i, inst[i].op);
+            drv2cov.get(tr);
+            for(int i = 0; i < 8; i++) cg_inst.sample(i, tr.inst[i].op);
 
-            same_op = inst[0].op;
+            same_op = tr.inst[0].op;
             same_flag = 1'b1;
-            for(int i = 1; i < 8; i++) same_flag &= (inst[i].op == same_op);
+            for(int i = 1; i < 8; i++) same_flag &= (tr.inst[i].op == same_op);
             cg_same_op.sample(same_flag, same_op);
+
+            if(tr.tar_graph == ONE_CHAIN) cg_one_chain.sample($countones(tr.chain_mask));
 
         end
     endtask

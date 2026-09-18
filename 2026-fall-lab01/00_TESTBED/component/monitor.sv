@@ -12,7 +12,6 @@ class monitor;
     virtual vif.monitor_mp mon_if;
 
     mailbox #(mon_txn) mon2scb;
-    mailbox #(mon_txn) mon2cov;
 
     int unsigned pattern_num;
     int unsigned sampled_num;
@@ -24,13 +23,11 @@ class monitor;
     function new(
         input virtual vif.monitor_mp mon_if,
         input mailbox #(mon_txn) mon2scb,
-        input mailbox #(mon_txn) mon2cov,
         input int unsigned pattern_num
     );
 
         this.mon_if = mon_if;
         this.mon2scb = mon2scb;
-        this.mon2cov = mon2cov;
         this.pattern_num = pattern_num;
         this.sampled_num = 0;
     endfunction
@@ -65,11 +62,6 @@ class monitor;
 
                 // 這裡使用 try_put() 而非 put() 是因為怕漏掉 sample 而沒發現
                 if(mon2scb.try_put(tr) == 0) $fatal(1,
-                    {"================================================================\n",
-                    "             Monitor Mailbox is Full ! ! !\n",
-                    "================================================================"});
-
-                if(mon2cov.try_put(tr) == 0) $fatal(1,
                     {"================================================================\n",
                     "             Monitor Mailbox is Full ! ! !\n",
                     "================================================================"});

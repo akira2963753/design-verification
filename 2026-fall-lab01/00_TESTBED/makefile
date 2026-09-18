@@ -40,7 +40,7 @@ VCS_GATE = vcs ${TIMESCALE} \
 	+neg_tchk \
 	+define+GATE+PRINT \
 	+ntb_random_seed=${seed} \
-	-cm line+branch+tgl+fsm+cond+assert | tee rtl_sim.log
+	-cm line+branch+tgl+fsm+cond+assert | tee gate_sim.log
 
 vcs_rtl:
 	${VCS_RTL}

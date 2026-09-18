@@ -41,7 +41,7 @@ initial begin
   `endif
 
   `ifdef GATE
-    $sdf_annotate("OISS_SYN.sdf", DUT_OISS);
+    $sdf_annotate("../02_SYN/Netlist/OISS_SYN.sdf", DUT_OISS);
     $fsdbDumpfile("OISS_SYN.fsdb");
     $fsdbDumpvars(0, "+mda");
     $fsdbDumpvars();
