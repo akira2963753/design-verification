@@ -41,6 +41,7 @@ class txn;
     rand bit [7:0] read_mask[8];
     rand bit [7:0] write_mask[8];
     rand graph_typ tar_graph;
+    rand bit [2:0] two_chain_short_len;
 
     rand bit raw[8][8];
     rand bit war[8][8];
@@ -153,8 +154,26 @@ class txn;
         }
     }
 
-    // 先決定 tar_graph 再決定 inst
+    // Choose an unordered length pair without fixing chain membership or layout.
+    constraint two_chain_length_c {
+        if(tar_graph == TWO_CHAINS) {
+            two_chain_short_len dist {2 := 1, 3 := 1, 4 := 1};
+            foreach(chain_edge_inv[i]) {
+                // A chain head reaches every other instruction in its chain.
+                if(chain_edge_inv[i] == '0) {
+                    (1 + $countones(reach[i])) inside {
+                        int'(two_chain_short_len), (8 - int'(two_chain_short_len))
+                    };
+                }
+            }
+        }
+        else two_chain_short_len == 0;
+    }
+
+    // Choose graph type, then length pair, then the instruction realization.
     constraint solve_order_c {
+        solve tar_graph before two_chain_short_len;
+        solve two_chain_short_len before inst;
         solve tar_graph before inst;
     }
     
@@ -188,6 +207,7 @@ class txn;
         `ifdef PRINT
             $display("================================================================");
             $display("                 TEST PATTERN [%0d] - [%0s]", testcase, tar_graph);
+            if(tar_graph == TWO_CHAINS) $display("Chain lengths = %0d + %0d", two_chain_short_len, 8 - int'(two_chain_short_len));
             $display("================================================================");
             foreach(inst[i]) begin
                 $display("Inst[%0d]: Op = %0s | Rs = %0d | Rt = %0d | Rd = %0d",
