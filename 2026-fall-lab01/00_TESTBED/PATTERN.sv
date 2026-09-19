@@ -18,12 +18,12 @@
 
 `include "driver.sv"
 // input virtual vif.driver_mp drv_if [driver interface]
-// input mailbox #(txn) gen2drv, [receive the input data from generator]
+// input mailbox #(txn) gen2drv, drv2cov [generated and driven transactions]
 // input int unsigned pattern_num
 
 `include "monitor.sv"
 // input virtual vif.monitor_mp mon_if [monitor interface]
-// input mailbox #(mon_txn) mon2scb, mon2cov [sampled i/o for both consumers]
+// input mailbox #(mon_txn) mon2scb [sampled i/o for scoreboard]
 // input int unsigned pattern_num
 
 `include "scoreboard.sv"
@@ -66,7 +66,7 @@ module PATTERN (
 
     // Instance 5 components and 3 mailboxes
     mailbox #(txn) gen2drv;     // generator to driver
-    mailbox #(mon_txn) mon2cov; // monitor to coverage
+    mailbox #(txn) drv2cov; // driver to coverage
     mailbox #(mon_txn) mon2scb; // monitor to scoreboard
 
     generator gen;
@@ -89,13 +89,13 @@ module PATTERN (
         clk = 1'b0;
         // Bound queued transactions; generator put() waits when full.
         gen2drv = new(100);
-        mon2cov = new(100);
+        drv2cov = new(100);
         mon2scb = new(100);
         gen = new(gen2drv, PATTERN_NUM);
-        drv = new(tb_if.driver_mp, gen2drv, PATTERN_NUM);
-        mon = new(tb_if.monitor_mp, mon2scb, mon2cov, PATTERN_NUM);
+        drv = new(tb_if.driver_mp, gen2drv, drv2cov, PATTERN_NUM);
+        mon = new(tb_if.monitor_mp, mon2scb, PATTERN_NUM);
         scb = new(mon2scb, PATTERN_NUM);
-        cov = new(mon2cov, PATTERN_NUM);
+        cov = new(drv2cov, PATTERN_NUM);
 
         $display("================================================================");
         $display("                  OISS Environment Started");
@@ -131,6 +131,7 @@ module PATTERN (
         if(mon != null) $display("Sampled patterns = %0d", mon.sampled_num);
         if(scb != null) $display("Checked patterns = %0d", scb.checked_num);
         if(gen2drv != null) $display("gen2drv pending = %0d", gen2drv.num());
+        if(drv2cov != null) $display("drv2cov pending = %0d", drv2cov.num());
         if(mon2scb != null) $display("mon2scb pending = %0d", mon2scb.num());
         $fatal(1,
             {"================================================================\n",

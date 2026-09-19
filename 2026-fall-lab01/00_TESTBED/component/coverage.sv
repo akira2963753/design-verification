@@ -9,11 +9,10 @@
 ******************************************************************************/
 
 class coverage;
-    mailbox #(mon_txn) mon2cov;
+    // Input stimulus coverage only; DUT output checks belong to scoreboard.
+    mailbox #(txn) drv2cov;
     int unsigned pattern_num;
     int unsigned sampled_num;
-    int unsigned skipped_input_num;
-    int unsigned skipped_schedule_num;
 
     //=============================================================
     //                     Functional Coverage
@@ -171,50 +170,14 @@ class coverage;
         }
     endgroup
 
-    // Coverage 8: Only legal DUT orders achieving the reference minimum.
-    // Reconstruct execution from the SPEC; these are not internal DUT probes.
-    covergroup cg_schedule with function sample(
-        int cycle_count, bit improved, bit last_not_latest,
-        bit same_op_overlap, bit stalled, bit ready_at_finish
-    );
-        coverpoint cycle_count {
-            bins minimum = {8};
-            bins lower = {[9:255]};
-            bins ninth_bit = {[256:399]};
-            bins maximum = {400};
-        }
-        coverpoint improved {
-            bins no = {0};
-            bins yes = {1};
-        }
-        coverpoint last_not_latest {
-            bins no = {0};
-            bins yes = {1};
-        }
-        coverpoint same_op_overlap {
-            bins no = {0};
-            bins yes = {1};
-        }
-        coverpoint stalled {
-            bins no = {0};
-            bins yes = {1};
-        }
-        coverpoint ready_at_finish {
-            bins no = {0};
-            bins yes = {1};
-        }
-    endgroup
-
     //=============================================================
     //                         Constructor
     //=============================================================
 
-    function new(input mailbox #(mon_txn) mon2cov, input int unsigned pattern_num);
-        this.mon2cov = mon2cov;
+    function new(input mailbox #(txn) drv2cov, input int unsigned pattern_num);
+        this.drv2cov = drv2cov;
         this.pattern_num = pattern_num;
         sampled_num = 0;
-        skipped_input_num = 0;
-        skipped_schedule_num = 0;
         cg_inst = new();
         cg_same_op = new();
         cg_graph = new();
@@ -226,90 +189,13 @@ class coverage;
         cg_duplicate = new();
         cg_memory = new();
         cg_memory_pair = new();
-        cg_schedule = new();
-    endfunction
-
-    //=============================================================
-    //                       Input Decoding
-    //=============================================================
-
-    // Reuse txn as a data container; never randomize it or copy generator masks.
-    function automatic bit decode_input(input mon_txn sample_tr, output txn tr);
-        int chain_count, member_count, incoming, outgoing;
-        tr = new();
-        if($isunknown({sample_tr.inst_seq, sample_tr.inst_lat})) return 0;
-        for(int i = 0; i < 8; i++) begin
-            tr.inst[i] = inst_typ'(sample_tr.inst_seq[i*12 +: 12]);
-            tr.lat[i] = sample_tr.inst_lat[i*6 +: 6];
-            case(tr.inst[i].op)
-                ADD, SUB, MUL, DIV: begin
-                    tr.read_mask[i] = (8'b1 << tr.inst[i].rs) | (8'b1 << tr.inst[i].rt);
-                    tr.write_mask[i] = 8'b1 << tr.inst[i].rd;
-                end
-                LOAD: tr.write_mask[i] = 8'b1 << tr.inst[i].rd;
-                STORE: tr.read_mask[i] = 8'b1 << tr.inst[i].rd;
-                BRANCH: tr.read_mask[i] = (8'b1 << tr.inst[i].rs) | (8'b1 << tr.inst[i].rt);
-                default: begin
-                    tr.read_mask[i] = '0;
-                    tr.write_mask[i] = '0;
-                end
-            endcase
-        end
-        if(!(tr.lat[ADD] inside {[1:5]}) || !(tr.lat[SUB] inside {[1:5]}) ||
-           !(tr.lat[MUL] inside {[20:40]}) || !(tr.lat[DIV] inside {[30:50]}) ||
-           !(tr.lat[LOAD] inside {[6:10]}) || !(tr.lat[STORE] inside {[6:10]}) ||
-           !(tr.lat[BRANCH] inside {[2:4]}) || tr.lat[JUMP] != 1) return 0;
-
-        for(int i = 0; i < 8; i++) begin
-            for(int j = i + 1; j < 8; j++) begin
-                tr.raw[i][j] = |(tr.write_mask[i] & tr.read_mask[j]);
-                tr.war[i][j] = |(tr.read_mask[i] & tr.write_mask[j]);
-                tr.waw[i][j] = |(tr.write_mask[i] & tr.write_mask[j]);
-                tr.dep_edge[i][j] = tr.raw[i][j] | tr.war[i][j] | tr.waw[i][j];
-                if((tr.inst[i].op inside {LOAD, STORE}) &&
-                   (tr.inst[j].op inside {LOAD, STORE}) &&
-                   (tr.inst[i].op == STORE || tr.inst[j].op == STORE) &&
-                   {tr.inst[i].rs, tr.inst[i].rt} == {tr.inst[j].rs, tr.inst[j].rt}) return 0;
-            end
-        end
-
-        // Find all reachable pairs, then remove redundant transitive edges.
-        tr.reach = tr.dep_edge;
-        for(int k = 0; k < 8; k++)
-            for(int i = 0; i < 8; i++)
-                for(int j = 0; j < 8; j++)
-                    tr.reach[i][j] |= tr.reach[i][k] & tr.reach[k][j];
-        tr.chain_edge = tr.dep_edge;
-        for(int i = 0; i < 8; i++)
-            for(int j = 0; j < 8; j++)
-                for(int k = 0; k < 8; k++)
-                    if(tr.reach[i][k] && tr.reach[k][j]) tr.chain_edge[i][j] = 0;
-
-        chain_count = 0;
-        member_count = 0;
-        for(int i = 0; i < 8; i++) begin
-            incoming = 0;
-            outgoing = 0;
-            for(int j = 0; j < 8; j++) begin
-                incoming += int'(tr.chain_edge[j][i]);
-                outgoing += int'(tr.chain_edge[i][j]);
-            end
-            if(incoming > 1 || outgoing > 1) return 0;
-            if(incoming == 0 && outgoing == 1) chain_count++;
-            tr.chain_mask[i] = (incoming != 0 || outgoing != 0);
-            if(tr.chain_mask[i]) member_count++;
-        end
-        if(chain_count == 0) tr.tar_graph = NO_CHAIN;
-        else if(chain_count == 1) tr.tar_graph = ONE_CHAIN;
-        else if(chain_count == 2 && member_count == 8) tr.tar_graph = TWO_CHAINS;
-        else return 0;
-        return 1;
     endfunction
 
     //=============================================================
     //                       Input Sampling
     //=============================================================
 
+    // Read the solved transaction fields; do not rebuild the dependency graph.
     function automatic void sample_input(input txn tr);
         bit same_flag, duplicate, incoming;
         bit [7:0] fake_reads, fake_write;
@@ -367,94 +253,16 @@ class coverage;
     endfunction
 
     //=============================================================
-    //                     Schedule Sampling
-    //=============================================================
-
-    function automatic void sample_schedule(input mon_txn sample_tr, input txn tr);
-        int start_time[8], finish_time[8], original_finish[8];
-        int order[8];
-        int next_issue, ready_time, completion, original_cycle, best_cycle, id;
-        bit [7:0] issued;
-        bit stalled, ready_at_finish, same_op_overlap;
-        if($isunknown({sample_tr.inst_order, sample_tr.ex_cycle})) begin
-            skipped_schedule_num++;
-            return;
-        end
-        issued = 0;
-        next_issue = 0;
-        completion = 0;
-        stalled = 0;
-        ready_at_finish = 0;
-        same_op_overlap = 0;
-        for(int k = 0; k < 8; k++) begin
-            id = int'(sample_tr.inst_order[k*3 +: 3]);
-            order[k] = id;
-            if(issued[id]) begin
-                skipped_schedule_num++;
-                return;
-            end
-            ready_time = 0;
-            for(int j = 0; j < 8; j++) begin
-                if(tr.dep_edge[j][id]) begin
-                    if(!issued[j]) begin
-                        skipped_schedule_num++;
-                        return;
-                    end
-                    if(finish_time[j] > ready_time) ready_time = finish_time[j];
-                end
-            end
-            start_time[id] = (ready_time > next_issue)? ready_time : next_issue;
-            stalled |= (start_time[id] > next_issue);
-            ready_at_finish |= (ready_time > 0 && start_time[id] == ready_time);
-            finish_time[id] = start_time[id] + int'(tr.lat[tr.inst[id].op]);
-            if(finish_time[id] > completion) completion = finish_time[id];
-            next_issue = start_time[id] + 1;
-            issued[id] = 1;
-        end
-
-        best_cycle = oiss_ref_pkg::reference_cycle(sample_tr.inst_seq, sample_tr.inst_lat);
-        if(completion != best_cycle || int'(sample_tr.ex_cycle) != best_cycle) begin
-            skipped_schedule_num++;
-            return;
-        end
-
-        // Original order is topological because all dependencies point i -> j.
-        next_issue = 0;
-        original_cycle = 0;
-        for(int i = 0; i < 8; i++) begin
-            ready_time = next_issue;
-            for(int j = 0; j < i; j++)
-                if(tr.dep_edge[j][i] && original_finish[j] > ready_time) ready_time = original_finish[j];
-            original_finish[i] = ready_time + int'(tr.lat[tr.inst[i].op]);
-            if(original_finish[i] > original_cycle) original_cycle = original_finish[i];
-            next_issue = ready_time + 1;
-            for(int j = i + 1; j < 8; j++) begin
-                if(tr.inst[i].op == tr.inst[j].op &&
-                   start_time[i] < finish_time[j] && start_time[j] < finish_time[i]) same_op_overlap = 1;
-            end
-        end
-        cg_schedule.sample(best_cycle, best_cycle < original_cycle,
-            finish_time[order[7]] < completion, same_op_overlap, stalled, ready_at_finish);
-    endfunction
-
-    //=============================================================
     //                          Run Task
     //=============================================================
 
     task run();
-        mon_txn sample_tr;
         txn tr;
         repeat(pattern_num) begin
-            mon2cov.get(sample_tr);
-            if(decode_input(sample_tr, tr)) begin
-                sample_input(tr);
-                sample_schedule(sample_tr, tr);
-                sampled_num++;
-            end
-            else skipped_input_num++;
+            drv2cov.get(tr);
+            sample_input(tr);
+            sampled_num++;
         end
-        $display("Coverage: sampled = %0d, skipped inputs = %0d, skipped schedules = %0d",
-            sampled_num, skipped_input_num, skipped_schedule_num);
-        $display("Coverage skips are diagnostic counts, not scoreboard checks.");
+        $display("Input coverage: sampled %0d driven transactions", sampled_num);
     endtask
 endclass

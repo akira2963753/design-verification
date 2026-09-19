@@ -11,6 +11,7 @@
 class driver;
     virtual vif.driver_mp drv_if;
     mailbox #(txn) gen2drv;
+    mailbox #(txn) drv2cov;
     int unsigned pattern_num;
 
     //=============================================================
@@ -20,11 +21,13 @@ class driver;
     function new(
         input virtual vif.driver_mp drv_if,
         input mailbox #(txn) gen2drv,
+        input mailbox #(txn) drv2cov,
         input int unsigned pattern_num
     );
 
         this.drv_if = drv_if;
         this.gen2drv = gen2drv;
+        this.drv2cov = drv2cov;
         this.pattern_num = pattern_num;
     endfunction
 
@@ -52,6 +55,12 @@ class driver;
             @(drv_if.driver_cb);
             if(gen2drv.try_get(tr) != 0) begin
                 drive_one(tr);
+                // Coverage only reads this handle; generator creates a new txn
+                // for every pattern. Never block here with sample_valid high.
+                if(drv2cov.try_put(tr) == 0) $fatal(1,
+                    {"================================================================\n",
+                    "           Driver Coverage Mailbox is Full ! ! !\n",
+                    "================================================================"});
                 sent_num++;
             end
             else drv_if.driver_cb.sample_valid <= 1'b0;
