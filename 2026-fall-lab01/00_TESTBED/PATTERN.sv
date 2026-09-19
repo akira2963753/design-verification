@@ -45,8 +45,10 @@ module PATTERN (
     //=============================================================
 
     localparam int unsigned PATTERN_NUM = 2000;
+    localparam int unsigned DIRECTED_NUM = generator::DIRECTED_NUM;
+    localparam int unsigned TOTAL_NUM = PATTERN_NUM + DIRECTED_NUM;
     localparam realtime CLK_PERIOD = 50.0;
-    localparam realtime TIMEOUT = (PATTERN_NUM + 10.0) * CLK_PERIOD * 10.0;
+    localparam realtime TIMEOUT = (TOTAL_NUM + 10.0) * CLK_PERIOD * 10.0;
 
     //=============================================================
     //                    Interface Connections
@@ -92,14 +94,15 @@ module PATTERN (
         drv2cov = new(100);
         mon2scb = new(100);
         gen = new(gen2drv, PATTERN_NUM);
-        drv = new(tb_if.driver_mp, gen2drv, drv2cov, PATTERN_NUM);
-        mon = new(tb_if.monitor_mp, mon2scb, PATTERN_NUM);
-        scb = new(mon2scb, PATTERN_NUM);
-        cov = new(drv2cov, PATTERN_NUM);
+        drv = new(tb_if.driver_mp, gen2drv, drv2cov, TOTAL_NUM);
+        mon = new(tb_if.monitor_mp, mon2scb, TOTAL_NUM);
+        scb = new(mon2scb, TOTAL_NUM);
+        cov = new(drv2cov, TOTAL_NUM);
 
         $display("================================================================");
         $display("                  OISS Environment Started");
-        $display("Patterns = %0d, clock period = %0.1f ns",   PATTERN_NUM, CLK_PERIOD);
+        $display("Random = %0d, directed = %0d, total = %0d, clock period = %0.1f ns",
+            PATTERN_NUM, DIRECTED_NUM, TOTAL_NUM, CLK_PERIOD);
         $display("================================================================");
 
         // sample_valid starts low in vif. All components start before the
@@ -127,7 +130,7 @@ module PATTERN (
 
     initial begin : WATCHDOG
         #(TIMEOUT);
-        $display("Simulation timeout at %0t; expected patterns = %0d", $time, PATTERN_NUM);
+        $display("Simulation timeout at %0t; expected patterns = %0d", $time, TOTAL_NUM);
         if(mon != null) $display("Sampled patterns = %0d", mon.sampled_num);
         if(scb != null) $display("Checked patterns = %0d", scb.checked_num);
         if(gen2drv != null) $display("gen2drv pending = %0d", gen2drv.num());

@@ -9,6 +9,8 @@
 ******************************************************************************/
 
 class generator;
+    // One appended all-same-opcode case for each supported opcode.
+    localparam int unsigned DIRECTED_NUM = 8;
     mailbox #(txn) gen2drv;
     int unsigned pattern_num;
     int unsigned testcase = 0;
@@ -21,7 +23,7 @@ class generator;
         this.pattern_num = pattern_num;
     endfunction
 
-    task run();
+    task run_random();
         txn tr;
 
         repeat(pattern_num) begin
@@ -39,4 +41,46 @@ class generator;
             testcase = testcase + 1;
         end
     endtask
+
+    //=============================================================
+    //                      Directed Patterns
+    //=============================================================
+
+    task run_directed();
+        txn tr;
+        op_typ target_op;
+        graph_typ target_graph;
+
+        for(int unsigned op_index = 0; op_index < DIRECTED_NUM; op_index++) begin
+            tr = new();
+            target_op = op_typ'(op_index);
+            // STORE, BRANCH and JUMP never write registers, so an all-same
+            // pattern of these opcodes cannot form a dependency chain.
+            target_graph = (target_op inside {STORE, BRANCH, JUMP})? NO_CHAIN : ONE_CHAIN;
+
+            if(!tr.randomize() with {
+                tar_graph == local::target_graph;
+                foreach(inst[i]) inst[i].op == local::target_op;
+            }) $fatal(1,
+                {"================================================================\n",
+                "        Directed Randomization Failed: opcode = %s\n",
+                "================================================================"}, target_op.name());
+
+            $display("DIRECTED PATTERN [%0d]: all %s, graph = %s",
+                testcase, target_op.name(), target_graph.name());
+            tr.print(testcase);
+            gen2drv.put(tr);
+            testcase++;
+        end
+    endtask
+
+    //=============================================================
+    //                           Main Run
+    //=============================================================
+
+    task run();
+        run_random();
+        run_directed();
+    endtask
+
 endclass

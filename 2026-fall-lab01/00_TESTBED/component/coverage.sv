@@ -12,7 +12,6 @@ class coverage;
     // Input stimulus coverage only; DUT output checks belong to scoreboard.
     mailbox #(txn) drv2cov;
     int unsigned pattern_num;
-    int unsigned sampled_num;
 
     //=============================================================
     //                     Functional Coverage
@@ -52,12 +51,15 @@ class coverage;
         }
     endgroup
 
+
+    // Coverage 4: 
     covergroup cg_one_chain with function sample(int length);
         coverpoint length {
             bins b_len[] = {[2:8]};
         }
     endgroup
 
+    // Coverage 5:
     // The shorter chain uniquely identifies the unordered length pair.
     covergroup cg_two_chains with function sample(int shorter_length);
         coverpoint shorter_length {
@@ -67,7 +69,7 @@ class coverage;
         }
     endgroup
 
-    // Coverage 4: One sample per original pair i < j; bit order is RAW/WAR/WAW.
+    // Coverage 6: One sample per original pair i < j; bit order is RAW/WAR/WAW.
     covergroup cg_dependency with function sample(bit [2:0] hazards);
         coverpoint hazards {
             bins independent = {3'b000};
@@ -81,7 +83,7 @@ class coverage;
         }
     endgroup
 
-    // Coverage 5: Latency of opcodes actually present in the input.
+    // Coverage 7: Latency of opcodes actually present in the input.
     // Per-opcode points avoid impossible opcode x latency cross bins.
     covergroup cg_latency with function sample(op_typ op, int latency);
         cp_add: coverpoint latency iff(op == ADD) {
@@ -127,7 +129,7 @@ class coverage;
         }
     endgroup
 
-    // Coverage 6: Input scenarios exercising special operand meanings.
+    // Coverage 8: Input scenarios exercising special operand meanings.
     // A hit alone does not prove that the DUT decoded the operand correctly.
     covergroup cg_special_rw with function sample(int scenario);
         coverpoint scenario {
@@ -140,7 +142,7 @@ class coverage;
         }
     endgroup
 
-    // Coverage 7: Duplicate encodings still represent distinct instructions.
+    // Coverage 9:
     covergroup cg_duplicate with function sample(bit duplicate);
         coverpoint duplicate {
             bins absent = {0};
@@ -148,6 +150,8 @@ class coverage;
         }
     endgroup
 
+
+    // Coverage 10:
     covergroup cg_memory with function sample(op_typ op, int address);
         coverpoint op {
             bins load = {LOAD};
@@ -161,6 +165,8 @@ class coverage;
         cross op, address;
     endgroup
 
+
+    // Coverage 11:
     covergroup cg_memory_pair with function sample(int scenario);
         coverpoint scenario {
             bins load_same_address = {0};
@@ -177,7 +183,6 @@ class coverage;
     function new(input mailbox #(txn) drv2cov, input int unsigned pattern_num);
         this.drv2cov = drv2cov;
         this.pattern_num = pattern_num;
-        sampled_num = 0;
         cg_inst = new();
         cg_same_op = new();
         cg_graph = new();
@@ -261,8 +266,6 @@ class coverage;
         repeat(pattern_num) begin
             drv2cov.get(tr);
             sample_input(tr);
-            sampled_num++;
         end
-        $display("Input coverage: sampled %0d driven transactions", sampled_num);
     endtask
 endclass

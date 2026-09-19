@@ -35,9 +35,9 @@ wire [8:0]   Ex_cycle;
 //============================================================================
 initial begin
   `ifdef RTL
-    $fsdbDumpfile("OISS.fsdb");
-    $fsdbDumpvars(0, "+mda");
-    $fsdbDumpvars();
+    //$fsdbDumpfile("OISS.fsdb");
+    //$fsdbDumpvars(0, "+mda");
+    //$fsdbDumpvars();
   `endif
 
   `ifdef GATE
