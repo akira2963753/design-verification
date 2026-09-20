@@ -69,8 +69,10 @@ class generator;
                     "        Directed 1 Randomization Failed: opcode = %s\n",
                 "================================================================"}, target_op.name());
 
-            $display("DIRECTED 1 PATTERN [%0d]: all %s, graph = %s",
-                testcase, target_op.name(), tr.tar_graph.name());
+            `ifdef PRINT
+                $display("DIRECTED 1 PATTERN [%0d]: all %s, graph = %s",
+                    testcase, target_op.name(), tr.tar_graph.name());
+            `endif
             tr.print(testcase);
             gen2drv.put(tr);
             testcase++;
@@ -119,7 +121,9 @@ class generator;
                 }
                 foreach(lat[i]) lat[i] == local::replay_lat[i*6 +: 6];
             }) $fatal(1, "Directed 2 replay %0d randomization failed", index);
-            $display("DIRECTED 2 REPLAY [%0d]: case=%0d", testcase, index);
+            `ifdef PRINT
+                $display("DIRECTED 2 REPLAY [%0d]: case=%0d", testcase, index);
+            `endif
             tr.print(testcase);
             gen2drv.put(tr);
             testcase++;
@@ -144,8 +148,10 @@ class generator;
                 end
                 if(!corner.randomize()) $fatal(1,
                     "Directed 2 scenario=%0d index=%0d randomization failed", scenario, index);
-                $display("DIRECTED 2 PATTERN [%0d]: scenario=%0d, A=%p B=%p",
-                    testcase, scenario, corner.a_latency, corner.b_latency);
+                `ifdef PRINT
+                    $display("DIRECTED 2 PATTERN [%0d]: scenario=%0d, A=%p B=%p",
+                        testcase, scenario, corner.a_latency, corner.b_latency);
+                `endif
                 corner.print(testcase);
                 gen2drv.put(corner);
                 testcase++;
@@ -172,8 +178,10 @@ class generator;
                     inst[i].rd == local::target_reg;
                 }
             }) $fatal(1, "Directed 3 randomization failed: register = r%0d", target_reg);
-            $display("DIRECTED 3 PATTERN [%0d]: rs = rt = rd = r%0d, graph = %s",
-                testcase, target_reg, tr.tar_graph.name());
+            `ifdef PRINT
+                $display("DIRECTED 3 PATTERN [%0d]: rs = rt = rd = r%0d, graph = %s",
+                    testcase, target_reg, tr.tar_graph.name());
+            `endif
             tr.print(testcase);
             gen2drv.put(tr);
             testcase++;
@@ -195,8 +203,10 @@ class generator;
                 if(!corner.randomize()) $fatal(1,
                     "Directed 4 length=%0d gap=%0d index=%0d randomization failed",
                     length, corner.total_gap, index);
-                $display("DIRECTED 4 PATTERN [%0d]: lengths=%0d+%0d, gap=%0d, A=%p B=%p",
-                    testcase, length, 8 - length, corner.total_gap, corner.a_latency, corner.b_latency);
+                `ifdef PRINT
+                    $display("DIRECTED 4 PATTERN [%0d]: lengths=%0d+%0d, gap=%0d, A=%p B=%p",
+                        testcase, length, 8 - length, corner.total_gap, corner.a_latency, corner.b_latency);
+                `endif
                 corner.print(testcase);
                 gen2drv.put(corner);
                 testcase++;
