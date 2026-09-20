@@ -1,8 +1,8 @@
 # Directed 2: 雙 chain 的 tie 排程
 
-執行順序為 directed 1 (1000 筆)、directed 2 (3004 筆)、directed 3 (1000 筆)、一般 CRV。
+執行順序為 directed 1 (1000 筆)、directed 2 (3004 筆)、directed 3 (1000 筆)、directed 4 (3000 筆)、一般 CRV。
 directed 3 每筆隨機選一個 register，全部 8 條指令的 rs、rt、rd 都使用它；opcode 與 latency 在原本合法 constraint 下隨機。
-每個 seed 在 random 筆數設為 50000 時，預期總數為 55004。
+每個 seed 在 random 筆數設為 50000 時，預期總數為 58004。
 筆數由 generator::DIRECTED_NUM 傳給 driver、monitor、scoreboard、coverage 與 watchdog。
 
 ## 固定重播

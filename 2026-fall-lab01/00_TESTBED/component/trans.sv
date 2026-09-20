@@ -315,6 +315,33 @@ class directed_2_txn extends txn;
 endclass
 
 //=============================================================
+//                     Directed 4 Transaction
+//=============================================================
+
+class directed_4_txn extends directed_2_txn;
+    // Reuse the two-chain structure; replace directed 2's latency profile.
+    constraint profile_c {
+        long_op == ADD;
+        (a_latency.sum() == b_latency.sum() + total_gap) ||
+        (b_latency.sum() == a_latency.sum() + total_gap);
+        (a_latency[0] >= 20) || (a_latency[1] >= 20) ||
+        (a_latency[2] >= 20) || (a_latency[3] >= 20) ||
+        (a_latency[4] >= 20) || (a_latency[5] >= 20) ||
+        (a_latency[6] >= 20) || (a_latency[7] >= 20);
+        (b_latency[0] >= 20) || (b_latency[1] >= 20) ||
+        (b_latency[2] >= 20) || (b_latency[3] >= 20) ||
+        (b_latency[4] >= 20) || (b_latency[5] >= 20) ||
+        (b_latency[6] >= 20) || (b_latency[7] >= 20);
+        if(a_length == 4) {
+            (a_latency[0] != b_latency[0]) ||
+            (a_latency[1] != b_latency[1]) ||
+            (a_latency[2] != b_latency[2]) ||
+            (a_latency[3] != b_latency[3]);
+        }
+    }
+endclass
+
+//=============================================================
 //                     Monitor Transaction
 //=============================================================
 

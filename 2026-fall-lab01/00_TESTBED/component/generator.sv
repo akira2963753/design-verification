@@ -15,7 +15,9 @@ class generator;
     localparam int unsigned DIRECTED_2_PER_TYPE = 1000;
     localparam int unsigned DIRECTED_2_NUM = DIRECTED_2_REPLAY_NUM + 3 * DIRECTED_2_PER_TYPE;
     localparam int unsigned DIRECTED_3_NUM = 1000;
-    localparam int unsigned DIRECTED_NUM = DIRECTED_1_NUM + DIRECTED_2_NUM + DIRECTED_3_NUM;
+    localparam int unsigned DIRECTED_4_PER_TYPE = 1000;
+    localparam int unsigned DIRECTED_4_NUM = 3 * DIRECTED_4_PER_TYPE;
+    localparam int unsigned DIRECTED_NUM = DIRECTED_1_NUM + DIRECTED_2_NUM + DIRECTED_3_NUM + DIRECTED_4_NUM;
     mailbox #(txn) gen2drv;
     int unsigned pattern_num;
     int unsigned testcase = 0;
@@ -179,6 +181,30 @@ class generator;
     endtask
 
     //=============================================================
+    //                 Directed 4: Long Latency Ties
+    //=============================================================
+
+    task run_directed_4();
+        directed_4_txn corner;
+
+        for(int length = 4; length >= 2; length--) begin
+            for(int index = 0; index < int'(DIRECTED_4_PER_TYPE); index++) begin
+                corner = new();
+                corner.a_length = length;
+                corner.total_gap = index % 3;
+                if(!corner.randomize()) $fatal(1,
+                    "Directed 4 length=%0d gap=%0d index=%0d randomization failed",
+                    length, corner.total_gap, index);
+                $display("DIRECTED 4 PATTERN [%0d]: lengths=%0d+%0d, gap=%0d, A=%p B=%p",
+                    testcase, length, 8 - length, corner.total_gap, corner.a_latency, corner.b_latency);
+                corner.print(testcase);
+                gen2drv.put(corner);
+                testcase++;
+            end
+        end
+    endtask
+
+    //=============================================================
     //                           Main Run
     //=============================================================
 
@@ -186,6 +212,7 @@ class generator;
         run_directed_1();
         run_directed_2();
         run_directed_3();
+        run_directed_4();
         run_random();
     endtask
 
