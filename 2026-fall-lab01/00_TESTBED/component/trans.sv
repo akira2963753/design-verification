@@ -263,13 +263,15 @@ class directed_2_txn extends txn;
             if(i >= (8 - a_length)) b_latency[i] == 0;
             else b_latency[i] inside {[1:50]};
         }
-        // Map each input position to its rank within its own chain.
+        // Keep countones in a condition: older VCS cannot use it as an index.
         foreach(inst[i]) {
-            if(member_a[i]) {
-                int'(lat[inst[i].op]) == a_latency[$countones(member_a & ((8'b1 << i) - 8'b1))];
-            }
-            else {
-                int'(lat[inst[i].op]) == b_latency[$countones((~member_a) & ((8'b1 << i) - 8'b1))];
+            foreach(a_latency[j]) {
+                if(member_a[i] && ($countones(member_a & ((8'b1 << i) - 8'b1)) == j)) {
+                    int'(lat[inst[i].op]) == a_latency[j];
+                }
+                if(!member_a[i] && ($countones((~member_a) & ((8'b1 << i) - 8'b1)) == j)) {
+                    int'(lat[inst[i].op]) == b_latency[j];
+                }
             }
         }
     }
@@ -291,7 +293,11 @@ class directed_2_txn extends txn;
             if(scenario == 1) {
                 (a_latency.sum() == b_latency.sum() + total_gap) ||
                 (b_latency.sum() == a_latency.sum() + total_gap);
-                a_latency != b_latency;
+                // This scenario has two length-4 chains; inactive entries are zero.
+                (a_latency[0] != b_latency[0]) ||
+                (a_latency[1] != b_latency[1]) ||
+                (a_latency[2] != b_latency[2]) ||
+                (a_latency[3] != b_latency[3]);
             }
             else {
                 foreach(a_latency[i]) {

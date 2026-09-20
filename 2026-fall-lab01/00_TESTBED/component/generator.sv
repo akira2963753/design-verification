@@ -109,7 +109,12 @@ class generator;
             tr = new();
             // Solve metadata too, so existing coverage receives a valid txn.
             if(!tr.randomize() with {
-                foreach(inst[i]) inst[i] == inst_typ'(local::replay_seq[i*12 +: 12]);
+                foreach(inst[i]) {
+                    inst[i].op == local::replay_seq[i*12 + 9 +: 3];
+                    inst[i].rs == local::replay_seq[i*12 + 6 +: 3];
+                    inst[i].rt == local::replay_seq[i*12 + 3 +: 3];
+                    inst[i].rd == local::replay_seq[i*12 +: 3];
+                }
                 foreach(lat[i]) lat[i] == local::replay_lat[i*6 +: 6];
             }) $fatal(1, "Directed 2 replay %0d randomization failed", index);
             $display("DIRECTED 2 REPLAY [%0d]: case=%0d", testcase, index);
