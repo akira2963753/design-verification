@@ -44,7 +44,7 @@ module PATTERN (
     //                       Configuration
     //=============================================================
 
-    localparam int unsigned PATTERN_NUM = 2000;
+    localparam int unsigned PATTERN_NUM = 4000;
     localparam int unsigned DIRECTED_NUM = generator::DIRECTED_NUM;
     localparam int unsigned TOTAL_NUM = PATTERN_NUM + DIRECTED_NUM;
     localparam realtime CLK_PERIOD = 50.0;
@@ -89,10 +89,9 @@ module PATTERN (
 
     initial begin: MAIN_FLOW
         clk = 1'b0;
-        // Bound queued transactions; generator put() waits when full.
-        gen2drv = new(100);
-        drv2cov = new(100);
-        mon2scb = new(100);
+        gen2drv = new();
+        drv2cov = new();
+        mon2scb = new();
         gen = new(gen2drv, PATTERN_NUM);
         drv = new(tb_if.driver_mp, gen2drv, drv2cov, TOTAL_NUM);
         mon = new(tb_if.monitor_mp, mon2scb, TOTAL_NUM);
@@ -118,8 +117,7 @@ module PATTERN (
         @(negedge clk);
 
         $display("================================================================");
-        $display("OISS Environment Completed: checked=%0d, passed=%0d, failed=%0d",
-            scb.checked_num, scb.checked_num - scb.failed_num, scb.failed_num);
+        $display("                  OISS Environment Completed");
         $display("                  Checked Property: Ex_cycle");
         $display("================================================================");
         $finish;

@@ -37,7 +37,6 @@ class scoreboard;
     mailbox #(mon_txn) mon2scb;
     int unsigned pattern_num;
     int unsigned checked_num;
-    int unsigned failed_num;
 
     //=============================================================
     //                         Constructor
@@ -51,7 +50,6 @@ class scoreboard;
         this.mon2scb = mon2scb;
         this.pattern_num = pattern_num;
         this.checked_num = 0;
-        this.failed_num = 0;
     endfunction
 
     //=============================================================
@@ -61,11 +59,8 @@ class scoreboard;
     local function void report_failure(
         input string reason,
         input mon_txn tr,
-        input int expected_cycle = -1
+        input int expected_cycle
     );
-        inst_typ failure_inst[8];
-        logic [5:0] failure_lat[8];
-
         $display("================================================================");
         $display("                  Scoreboard Check Failed ! ! !");
         $display("================================================================");
@@ -73,27 +68,14 @@ class scoreboard;
         if(tr != null) begin
             $display("TEST PATTERN [%0d]", tr.testcase);
             $display("================================================================");
-            // inst_typ is two-state; do not hide X/Z by casting unknown inputs.
-            if(!$isunknown(tr.inst_seq)) begin
-                foreach(failure_inst[i]) begin
-                    failure_inst[i] = inst_typ'(tr.inst_seq[i*12 +: 12]);
-                    failure_lat[i] = tr.inst_lat[i*6 +: 6];
-                end
-                foreach(failure_inst[i]) begin
-                    $display("Inst[%0d]: OP = %0s, Rs = %0d, Rt = %0d, Rd = %0d | Latency = %0d",
-                        i, failure_inst[i].op.name(), failure_inst[i].rs, failure_inst[i].rt,
-                        failure_inst[i].rd, failure_lat[int'(failure_inst[i].op)]);
-                end
-            end
-            else $display("Instruction decode skipped: Inst_seq_I contains X/Z");
+            $display("Inst_seq_I     = %024h", tr.inst_seq);
+            $display("Inst_latency_I = %012h", tr.inst_lat);
             $display("================================================================");
             $display("Inst_order_O = %06h", tr.inst_order);
             $display("Actual cycle = %0d (hex %03h)", tr.ex_cycle, tr.ex_cycle);
+            $display("Expected cycle = %0d", expected_cycle);
         end
-        if(expected_cycle >= 0) $display("Expected cycle = %0d", expected_cycle);
-        else $display("Expected cycle = unavailable");
-        $display("================================================================");
-        failed_num++;
+        $fatal(1, "================================================================");
     endfunction
 
     //=============================================================
@@ -104,15 +86,15 @@ class scoreboard;
         int expected_cycle;
 
         if(tr == null) begin
-            report_failure("Null monitor transaction", tr);
+            report_failure("Null monitor transaction", tr, -1);
             return;
         end
         if($isunknown({tr.inst_seq, tr.inst_lat})) begin
-            report_failure("Sampled DUT input contains X/Z", tr);
+            report_failure("Sampled DUT input contains X/Z", tr, -1);
             return;
         end
         if($isunknown(tr.ex_cycle)) begin
-            report_failure("Sampled Ex_cycle contains X/Z", tr);
+            report_failure("Sampled Ex_cycle contains X/Z", tr, -1);
             return;
         end
 
@@ -138,17 +120,10 @@ class scoreboard;
         mon_txn tr;
 
         checked_num = 0;
-        failed_num = 0;
         repeat(pattern_num) begin
             mon2scb.get(tr);
             check_one(tr);
             checked_num++;
         end
-
-        $display("================================================================");
-        $display("Ex_cycle checks completed: checked=%0d, passed=%0d, failed=%0d",
-            checked_num, checked_num - failed_num, failed_num);
-        $display("================================================================");
-
     endtask
 endclass

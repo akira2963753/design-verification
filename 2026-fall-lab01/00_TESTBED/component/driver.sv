@@ -56,11 +56,8 @@ class driver;
             if(gen2drv.try_get(tr) != 0) begin
                 drive_one(tr);
                 // Coverage only reads this handle; generator creates a new txn
-                // for every pattern. Never block here with sample_valid high.
-                if(drv2cov.try_put(tr) == 0) $fatal(1,
-                    {"================================================================\n",
-                    "           Driver Coverage Mailbox is Full ! ! !\n",
-                    "================================================================"});
+                // for every pattern.
+                drv2cov.put(tr);
                 sent_num++;
             end
             else drv_if.driver_cb.sample_valid <= 1'b0;

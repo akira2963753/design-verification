@@ -57,6 +57,7 @@ class txn;
 
     bit [95:0] inst_seq;
     bit [47:0] inst_lat;
+    bit is_random;
 
     //=============================================================
     //                         Constraints
@@ -227,118 +228,9 @@ class txn;
 
     function void post_randomize();
         pack_input();
+        is_random = 1'b1;
     endfunction
 
-endclass
-
-//=============================================================
-//                     Directed 2 Transaction
-//=============================================================
-
-class directed_2_txn extends txn;
-    // Configured before randomize: 0 = symmetric/position sweep,
-    // 1 = near-balanced, 2 = unequal lengths with short latencies.
-    int scenario;
-    int a_length = 4;
-    int long_pos_a = 1;
-    int long_pos_b = 1;
-    int total_gap;
-    bit replay_short_shape;
-
-    rand bit [7:0] member_a;
-    rand int a_latency[8];
-    rand int b_latency[8];
-    rand op_typ long_op;
-
-    constraint structure_c {
-        tar_graph == TWO_CHAINS;
-        int'(two_chain_short_len) == a_length;
-        $countones(member_a) == a_length;
-        foreach(dep_edge[i, j]) {
-            if(i < j) dep_edge[i][j] == (member_a[i] == member_a[j]);
-        }
-        foreach(a_latency[i]) {
-            if(i >= a_length) a_latency[i] == 0;
-            else a_latency[i] inside {[1:50]};
-            if(i >= (8 - a_length)) b_latency[i] == 0;
-            else b_latency[i] inside {[1:50]};
-        }
-        // Keep countones in a condition: older VCS cannot use it as an index.
-        foreach(inst[i]) {
-            foreach(a_latency[j]) {
-                if(member_a[i] && ($countones(member_a & ((8'b1 << i) - 8'b1)) == j)) {
-                    int'(lat[inst[i].op]) == a_latency[j];
-                }
-                if(!member_a[i] && ($countones((~member_a) & ((8'b1 << i) - 8'b1)) == j)) {
-                    int'(lat[inst[i].op]) == b_latency[j];
-                }
-            }
-        }
-    }
-
-    constraint profile_c {
-        if(scenario == 0) {
-            long_op inside {MUL, DIV, LOAD};
-            foreach(a_latency[i]) {
-                if(i < 4) {
-                    if(i == long_pos_a) a_latency[i] == int'(lat[long_op]);
-                    else a_latency[i] == 1;
-                    if(i == long_pos_b) b_latency[i] == int'(lat[long_op]);
-                    else b_latency[i] == 1;
-                }
-            }
-        }
-        else {
-            long_op == ADD;
-            if(scenario == 1) {
-                (a_latency.sum() == b_latency.sum() + total_gap) ||
-                (b_latency.sum() == a_latency.sum() + total_gap);
-                // This scenario has two length-4 chains; inactive entries are zero.
-                (a_latency[0] != b_latency[0]) ||
-                (a_latency[1] != b_latency[1]) ||
-                (a_latency[2] != b_latency[2]) ||
-                (a_latency[3] != b_latency[3]);
-            }
-            else {
-                foreach(a_latency[i]) {
-                    if(i < a_length) a_latency[i] inside {[1:3]};
-                    if(i < (8 - a_length)) b_latency[i] inside {[1:3]};
-                }
-                if(replay_short_shape) {
-                    a_latency[0] == 1; a_latency[1] == 3; a_latency[2] == 1;
-                    b_latency[0] == 1; b_latency[1] == 2; b_latency[2] == 2;
-                    b_latency[3] == 1; b_latency[4] == 1;
-                }
-            }
-        }
-    }
-endclass
-
-//=============================================================
-//                     Directed 4 Transaction
-//=============================================================
-
-class directed_4_txn extends directed_2_txn;
-    // Reuse the two-chain structure; replace directed 2's latency profile.
-    constraint profile_c {
-        long_op == ADD;
-        (a_latency.sum() == b_latency.sum() + total_gap) ||
-        (b_latency.sum() == a_latency.sum() + total_gap);
-        (a_latency[0] >= 20) || (a_latency[1] >= 20) ||
-        (a_latency[2] >= 20) || (a_latency[3] >= 20) ||
-        (a_latency[4] >= 20) || (a_latency[5] >= 20) ||
-        (a_latency[6] >= 20) || (a_latency[7] >= 20);
-        (b_latency[0] >= 20) || (b_latency[1] >= 20) ||
-        (b_latency[2] >= 20) || (b_latency[3] >= 20) ||
-        (b_latency[4] >= 20) || (b_latency[5] >= 20) ||
-        (b_latency[6] >= 20) || (b_latency[7] >= 20);
-        if(a_length == 4) {
-            (a_latency[0] != b_latency[0]) ||
-            (a_latency[1] != b_latency[1]) ||
-            (a_latency[2] != b_latency[2]) ||
-            (a_latency[3] != b_latency[3]);
-        }
-    }
 endclass
 
 //=============================================================

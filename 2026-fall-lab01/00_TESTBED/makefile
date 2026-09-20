@@ -1,13 +1,13 @@
 #======================================================
 #         Design Flow MakeFile (Author: Marco)
 #======================================================
-.PHONY: vcs_rtl vcs_gate
+.PHONY: vcs_rtl vcs_gate vcs_fast
 #======================================================
 #              Set your desired file names
 #======================================================
 top_design=OISS.v
 source_file="file.f"
-TIMESCALE="-timescale=1ns/1ps"
+TIMESCALE="-timescale=1ns/1ns"
 seed = 11111
 DPI_SOURCE = ../00_TESTBED/component/oiss.cpp
 DPI_CFLAGS = -std=c++17 -O2
@@ -25,7 +25,7 @@ VCS_RTL = vcs ${TIMESCALE} \
 	+notimingchecks \
 	+define+RTL+PRINT \
 	+ntb_random_seed=${seed} 2>&1 \
-	-cm line+branch+tgl+fsm+cond+assert | tee rtl_seed_${seed}.log
+	-cm line+branch+tgl+fsm+cond+assert | tee seed_${seed}.log
 
 VCS_GATE = vcs ${TIMESCALE} \
 	-full64 \
@@ -40,7 +40,7 @@ VCS_GATE = vcs ${TIMESCALE} \
 	+ntb_random_seed=${seed} \
 	+no_tchk_msg \
 	+no_notifier \
-	-cm line+branch+tgl+fsm+cond+assert | tee rtl_sim.log
+	-cm line+branch+tgl+fsm+cond+assert | tee seed_${seed}.log
 
 VCS_FAST = vcs ${TIMESCALE} \
 	-full64 \
@@ -51,7 +51,7 @@ VCS_FAST = vcs ${TIMESCALE} \
 	${DPI_SOURCE} \
 	+notimingchecks \
 	+define+RTL \
-	+ntb_random_seed=${seed} 2>&1 | tee rtl_seed_${seed}.log
+	+ntb_random_seed=${seed} 2>&1 | tee seed_${seed}.log
 
 vcs_rtl:
 	${VCS_RTL}
