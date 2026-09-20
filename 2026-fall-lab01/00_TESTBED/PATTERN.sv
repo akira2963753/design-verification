@@ -44,7 +44,7 @@ module PATTERN (
     //                       Configuration
     //=============================================================
 
-    localparam int unsigned PATTERN_NUM = 2000;
+    parameter int unsigned PATTERN_NUM = 2000;
     localparam int unsigned DIRECTED_NUM = generator::DIRECTED_NUM;
     localparam int unsigned TOTAL_NUM = PATTERN_NUM + DIRECTED_NUM;
     localparam realtime CLK_PERIOD = 50.0;
@@ -118,7 +118,8 @@ module PATTERN (
         @(negedge clk);
 
         $display("================================================================");
-        $display("          OISS Environment Completed: %0d Patterns Passed", scb.checked_num);
+        $display("OISS Environment Completed: checked=%0d, passed=%0d, failed=%0d",
+            scb.checked_num, scb.checked_num - scb.failed_num, scb.failed_num);
         $display("                  Checked Property: Ex_cycle");
         $display("================================================================");
         $finish;

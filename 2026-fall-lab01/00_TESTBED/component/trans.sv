@@ -178,13 +178,14 @@ class txn;
     }
     
     constraint lat_c {
-        lat[ADD] inside {[1:5]};
-        lat[SUB] inside {[1:5]};
-        lat[MUL] inside {[20:40]};
-        lat[DIV] inside {[30:50]};
-        lat[LOAD] inside {[6:10]};
-        lat[STORE] inside {[6:10]};
-        lat[BRANCH] inside {[2:4]};
+        // Endpoints each receive 25%; the middle range shares 50% equally.
+        lat[ADD] dist {1 := 1, [2:4] :/ 2, 5 := 1};
+        lat[SUB] dist {1 := 1, [2:4] :/ 2, 5 := 1};
+        lat[MUL] dist {20 := 1, [21:39] :/ 2, 40 := 1};
+        lat[DIV] dist {30 := 1, [31:49] :/ 2, 50 := 1};
+        lat[LOAD] dist {6 := 1, [7:9] :/ 2, 10 := 1};
+        lat[STORE] dist {6 := 1, [7:9] :/ 2, 10 := 1};
+        lat[BRANCH] dist {2 := 1, 3 := 2, 4 := 1};
         lat[JUMP] == 1;
     }
 
@@ -228,6 +229,83 @@ class txn;
         pack_input();
     endfunction
 
+endclass
+
+//=============================================================
+//                     Directed 2 Transaction
+//=============================================================
+
+class directed_2_txn extends txn;
+    // Configured before randomize: 0 = symmetric/position sweep,
+    // 1 = near-balanced, 2 = unequal lengths with short latencies.
+    int scenario;
+    int a_length = 4;
+    int long_pos_a = 1;
+    int long_pos_b = 1;
+    int total_gap;
+    bit replay_short_shape;
+
+    rand bit [7:0] member_a;
+    rand int a_latency[8];
+    rand int b_latency[8];
+    rand op_typ long_op;
+
+    constraint structure_c {
+        tar_graph == TWO_CHAINS;
+        int'(two_chain_short_len) == a_length;
+        $countones(member_a) == a_length;
+        foreach(dep_edge[i, j]) {
+            if(i < j) dep_edge[i][j] == (member_a[i] == member_a[j]);
+        }
+        foreach(a_latency[i]) {
+            if(i >= a_length) a_latency[i] == 0;
+            else a_latency[i] inside {[1:50]};
+            if(i >= (8 - a_length)) b_latency[i] == 0;
+            else b_latency[i] inside {[1:50]};
+        }
+        // Map each input position to its rank within its own chain.
+        foreach(inst[i]) {
+            if(member_a[i]) {
+                int'(lat[inst[i].op]) == a_latency[$countones(member_a & ((8'b1 << i) - 8'b1))];
+            }
+            else {
+                int'(lat[inst[i].op]) == b_latency[$countones((~member_a) & ((8'b1 << i) - 8'b1))];
+            }
+        }
+    }
+
+    constraint profile_c {
+        if(scenario == 0) {
+            long_op inside {MUL, DIV, LOAD};
+            foreach(a_latency[i]) {
+                if(i < 4) {
+                    if(i == long_pos_a) a_latency[i] == int'(lat[long_op]);
+                    else a_latency[i] == 1;
+                    if(i == long_pos_b) b_latency[i] == int'(lat[long_op]);
+                    else b_latency[i] == 1;
+                }
+            }
+        }
+        else {
+            long_op == ADD;
+            if(scenario == 1) {
+                (a_latency.sum() == b_latency.sum() + total_gap) ||
+                (b_latency.sum() == a_latency.sum() + total_gap);
+                a_latency != b_latency;
+            }
+            else {
+                foreach(a_latency[i]) {
+                    if(i < a_length) a_latency[i] inside {[1:3]};
+                    if(i < (8 - a_length)) b_latency[i] inside {[1:3]};
+                }
+                if(replay_short_shape) {
+                    a_latency[0] == 1; a_latency[1] == 3; a_latency[2] == 1;
+                    b_latency[0] == 1; b_latency[1] == 2; b_latency[2] == 2;
+                    b_latency[3] == 1; b_latency[4] == 1;
+                }
+            }
+        }
+    }
 endclass
 
 //=============================================================

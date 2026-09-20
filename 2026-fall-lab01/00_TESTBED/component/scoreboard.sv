@@ -37,6 +37,7 @@ class scoreboard;
     mailbox #(mon_txn) mon2scb;
     int unsigned pattern_num;
     int unsigned checked_num;
+    int unsigned failed_num;
 
     //=============================================================
     //                         Constructor
@@ -50,34 +51,49 @@ class scoreboard;
         this.mon2scb = mon2scb;
         this.pattern_num = pattern_num;
         this.checked_num = 0;
+        this.failed_num = 0;
     endfunction
 
     //=============================================================
     //                       Diagnostic Output
     //=============================================================
 
-    local function void stop_check(
+    local function void report_failure(
         input string reason,
         input mon_txn tr,
         input int expected_cycle = -1
     );
+        inst_typ failure_inst[8];
+        logic [5:0] failure_lat[8];
+
         $display("================================================================");
         $display("                  Scoreboard Check Failed ! ! !");
         $display("================================================================");
         $display("Reason: %s", reason);
         if(tr != null) begin
             $display("TEST PATTERN [%0d]", tr.testcase);
-            $display("Inst_seq_I     = %024h", tr.inst_seq);
-            $display("Inst_latency_I = %012h", tr.inst_lat);
-            $display("Inst_order_O   = %06h", tr.inst_order);
-            $display("Actual cycle   = %0d (hex %03h)", tr.ex_cycle, tr.ex_cycle);
+            $display("================================================================");
+            // inst_typ is two-state; do not hide X/Z by casting unknown inputs.
+            if(!$isunknown(tr.inst_seq)) begin
+                foreach(failure_inst[i]) begin
+                    failure_inst[i] = inst_typ'(tr.inst_seq[i*12 +: 12]);
+                    failure_lat[i] = tr.inst_lat[i*6 +: 6];
+                end
+                foreach(failure_inst[i]) begin
+                    $display("Inst[%0d]: OP = %0s, Rs = %0d, Rt = %0d, Rd = %0d | Latency = %0d",
+                        i, failure_inst[i].op.name(), failure_inst[i].rs, failure_inst[i].rt,
+                        failure_inst[i].rd, failure_lat[int'(failure_inst[i].op)]);
+                end
+            end
+            else $display("Instruction decode skipped: Inst_seq_I contains X/Z");
+            $display("================================================================");
+            $display("Inst_order_O = %06h", tr.inst_order);
+            $display("Actual cycle = %0d (hex %03h)", tr.ex_cycle, tr.ex_cycle);
         end
         if(expected_cycle >= 0) $display("Expected cycle = %0d", expected_cycle);
         else $display("Expected cycle = unavailable");
-        $fatal(1,
-            {"================================================================\n",
-            "                    Simulation Stopped ! ! !\n",
-            "================================================================"});
+        $display("================================================================");
+        failed_num++;
     endfunction
 
     //=============================================================
@@ -88,25 +104,25 @@ class scoreboard;
         int expected_cycle;
 
         if(tr == null) begin
-            stop_check("Null monitor transaction", tr);
+            report_failure("Null monitor transaction", tr);
             return;
         end
         if($isunknown({tr.inst_seq, tr.inst_lat})) begin
-            stop_check("Sampled DUT input contains X/Z", tr);
+            report_failure("Sampled DUT input contains X/Z", tr);
             return;
         end
         if($isunknown(tr.ex_cycle)) begin
-            stop_check("Sampled Ex_cycle contains X/Z", tr);
+            report_failure("Sampled Ex_cycle contains X/Z", tr);
             return;
         end
 
         expected_cycle = oiss_ref_pkg::reference_cycle(tr.inst_seq, tr.inst_lat);
         if(expected_cycle < 8 || expected_cycle > 400) begin
-            stop_check("Reference model rejected input or returned an invalid cycle", tr, expected_cycle);
+            report_failure("Reference model rejected input or returned an invalid cycle", tr, expected_cycle);
             return;
         end
         if(int'(tr.ex_cycle) != expected_cycle) begin
-            stop_check("Ex_cycle does not match the reference minimum", tr, expected_cycle);
+            report_failure("Ex_cycle does not match the reference minimum", tr, expected_cycle);
             return;
         end
 
@@ -122,6 +138,7 @@ class scoreboard;
         mon_txn tr;
 
         checked_num = 0;
+        failed_num = 0;
         repeat(pattern_num) begin
             mon2scb.get(tr);
             check_one(tr);
@@ -129,7 +146,8 @@ class scoreboard;
         end
 
         $display("================================================================");
-        $display("             All %0d Ex_cycle Checks Passed", checked_num);
+        $display("Ex_cycle checks completed: checked=%0d, passed=%0d, failed=%0d",
+            checked_num, checked_num - failed_num, failed_num);
         $display("================================================================");
 
     endtask
