@@ -44,7 +44,7 @@ module PATTERN (
     //                       Configuration
     //=============================================================
 
-    parameter int unsigned PATTERN_NUM = 2000;
+    localparam int unsigned PATTERN_NUM = 2000;
     localparam int unsigned DIRECTED_NUM = generator::DIRECTED_NUM;
     localparam int unsigned TOTAL_NUM = PATTERN_NUM + DIRECTED_NUM;
     localparam realtime CLK_PERIOD = 50.0;
