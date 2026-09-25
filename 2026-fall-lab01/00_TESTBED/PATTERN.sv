@@ -31,6 +31,8 @@
 // input int unsigned pattern_num
 
 `include "coverage.sv"
+// input mailbox #(txn) drv2cov [receive txn from driver]
+// input int unsigned pattern_num
 
 module PATTERN (
     output logic clk,
