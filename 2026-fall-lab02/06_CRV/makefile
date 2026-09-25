@@ -5,12 +5,11 @@
 #======================================================
 #              Set your desired file names
 #======================================================
-top_design=OISS.v
+top_design=LDPC.v
 source_file="file.f"
-TIMESCALE="-timescale=1ns/1ns"
+TIMESCALE="-timescale=1ns/1ps"
 seed = 11111
-DPI_SOURCE = ../00_TESTBED/component/oiss.cpp
-DPI_CFLAGS = -std=c++17 -O2
+UMC018_SIM = ~iclabTA01/umc018/Verilog/umc18_neg.v
 #======================================================
 #                          VCS
 #======================================================
@@ -20,12 +19,10 @@ VCS_RTL = vcs ${TIMESCALE} \
 	-R \
 	+v2k \
 	-f ${source_file} \
-	-CFLAGS "${DPI_CFLAGS}" \
-	${DPI_SOURCE} \
 	+notimingchecks \
-	+define+RTL+PRINT \
-	+ntb_random_seed=${seed} 2>&1 \
-	-cm line+branch+tgl+fsm+cond+assert | tee seed_${seed}.log
+	+define+RTL \
+	+ntb_random_seed=${seed} \
+	-cm line+branch+tgl+fsm+cond+assert 2>&1 | tee seed_${seed}.log
 
 VCS_GATE = vcs ${TIMESCALE} \
 	-full64 \
@@ -33,22 +30,19 @@ VCS_GATE = vcs ${TIMESCALE} \
 	-R \
 	+v2k \
 	-f ${source_file} \
-	-CFLAGS "${DPI_CFLAGS}" \
-	${DPI_SOURCE} \
+	-v ${UMC018_SIM} \
 	+neg_tchk \
-	+define+GATE+PRINT \
+	+define+GATE \
 	+ntb_random_seed=${seed} \
 	+no_tchk_msg \
 	+no_notifier \
-	-cm line+branch+tgl+fsm+cond+assert | tee seed_${seed}.log
+	-cm line+branch+tgl+fsm+cond+assert 2>&1 | tee seed_${seed}.log
 
 VCS_FAST = vcs ${TIMESCALE} \
 	-full64 \
 	-R \
 	+v2k \
 	-f ${source_file} \
-	-CFLAGS "${DPI_CFLAGS}" \
-	${DPI_SOURCE} \
 	+notimingchecks \
 	+define+RTL \
 	+ntb_random_seed=${seed} 2>&1 | tee seed_${seed}.log

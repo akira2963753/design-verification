@@ -50,7 +50,7 @@ module PATTERN (
     //                       Configuration
     //=============================================================
 
-    localparam uint PATTERN_NUM = 1000;
+    localparam uint PATTERN_NUM = 4000;
     localparam realtime CLK_PERIOD = 15.0;
     localparam string G_PATH = "../00_TESTBED/G_128_64.txt";
     // mode 1 + gap 4 + data 128 + latency 100 + output 128 + gap 4 < 400 cycles

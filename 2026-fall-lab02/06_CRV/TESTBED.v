@@ -9,13 +9,6 @@
 ******************************************************************************/
 `timescale 1ns/1ps
 
-`ifdef RTL
-    `include "LDPC.v"
-`endif
-`ifdef GATE
-    `include "LDPC_SYN.v"
-`endif
-
 module TESTBED;
 
     //=============================================================

@@ -105,6 +105,9 @@ class scoreboard;
         iter_hist[tr.mode][(exp_warn)? 9 : rm.iters]++;
         total_latency += tr.latency;
         if(tr.latency > max_latency) max_latency = tr.latency;
+
+        $display("TEST PATTERN [%0d] PASS: mode = %0d, warn = %0d, iterations = %0d, latency = %0d",
+            tr.testcase, tr.mode, exp_warn, rm.iters, tr.latency);
     endfunction
 
     //=============================================================
