@@ -22,6 +22,7 @@
 # Exit code: 0 all pass, 1 any fail.
 
 import argparse
+import os
 import random
 import re
 import subprocess
@@ -65,6 +66,12 @@ def fail_reason(log_path):
 def run_seed(seed, make_vars):
     log_path = "{}/{}_seed_{}.log".format(LOG_DIR, TARGET, seed)
     cmd = ["make", TARGET, "seed={}".format(seed)] + make_vars
+
+    # Remove this seed's old log, so a make that never reaches the recipe
+    # reports "log file not found" instead of a stale reason
+    if os.path.exists(log_path):
+        os.remove(log_path)
+
     t0 = time.time()
     rc = subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     sec = time.time() - t0
