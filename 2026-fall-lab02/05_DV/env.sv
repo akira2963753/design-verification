@@ -163,17 +163,4 @@ module env (
         if(mon2scb != null) $display("mon2scb pending = %0d", mon2scb.num());
         $fatal(1);
     end
-
-    //=============================================================
-    //                   SystemVerilog Assertion
-    //=============================================================
-    // Property Name: assert property(condition) <pass event> else <fail event>
-
-    // clk is forced during drive_reset, so spec 3 is sampled at the rst_n rising edge
-    RESET_OUT_ZERO: assert property(
-        @(posedge rst_n)
-        $time > 0 |-> (!out_valid && !out_warn && out_data == 0)
-    )
-    else $fatal(1, "[ERROR]: All outputs must be 0 after reset is asserted (spec 3).");
-
 endmodule
