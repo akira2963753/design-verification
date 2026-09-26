@@ -51,7 +51,7 @@ module env (
     //                       Configuration
     //=============================================================
 
-    localparam uint PAT_NUM = 1000;
+    localparam uint PAT_NUM = 4000;
     localparam uint MBX_SIZE = 200;   // bounded mailbox depth
     localparam uint TIME_OUT = 1000;  // driver hang guard in cycles
     localparam realtime CLK_PERIOD = 15.0;
