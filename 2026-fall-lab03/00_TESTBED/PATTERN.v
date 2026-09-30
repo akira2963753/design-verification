@@ -273,6 +273,7 @@ module PATTERN(
 
             // Accumulate the total latency 
             total_latency += lat;
+            
 
             // already at the 1st negedge after the out_valid pull down, total 1 ~ 4 negedge
             repeat($urandom_range(0, 3)) @(negedge clk);
@@ -323,7 +324,12 @@ module PATTERN(
 
         reset_task();
 
-        for(int i = 0; i < pat_num; i++) write_and_check_task();
+        for(int i = 0; i < pat_num; i++) begin 
+            write_and_check_task();
+            $display("=============================================================");
+            $display("                     [PATTERN %0d] PASS             ", pat_num);
+            $display("=============================================================");
+        end
 
         pass_task();
         $fclose(fd);
