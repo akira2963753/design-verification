@@ -1,0 +1,7 @@
+rm -rf *.fsdb ./csrc *.log simv* *.sdf.X *.key
+rm -rf *.fsdb *.sdf.X ./INCA_libs *.history *.log
+rm -rf *.fsdb *.sdf.X ./xcelium.d *.history *.log
+rm -rf ./nWaveLog ./verdiLog *.conf *.rc *.log
+rm -rf ./Netlist/*.* ./Report/*.* *.log alib* *.svf dwsvf* *.ddc *.pvl *.syn *.mr
+rm -rf vcd.out ./fsdb2vcdLog ./Report/*
+rm -rf checkDesign rm -rf *.log rm -rf *.rpt* rm -rf *.CCOPT.spec rm -rf *.checkPlace rm -rf ./StreamOut/* CHIP_SYN.v rm -rf *.globals rm -rf extLogDir rm -rf ./log/* rm -rf ./DBS/* rm -rf ./timingReports/* rm -rf *.bin
