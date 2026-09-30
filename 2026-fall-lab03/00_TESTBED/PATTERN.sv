@@ -258,14 +258,12 @@ module PATTERN(
                     $fatal(1);
                 end                
 
-                //spec5_case = (chain_num === 7'd0) && (elim_color !== 3'd0 || elim_cnt !== 9'd0);
-                //spec6_case = (lat == 0); // out_valid already high at the 1st negedge, overlapped with shot_valid
-                //if(!spec5_case && !spec6_case && out_idx < gold_color.size()) begin
-
-                if(out_idx == 0 && chain_num !== gold_chain) spec8_task();
-                else if(elim_color !== gold_color[out_idx] || elim_cnt !== gold_cnt[out_idx]) spec8_task();
-
-                //end
+                spec5_case = (chain_num === 7'd0) && (elim_color !== 3'd0 || elim_cnt !== 9'd0);
+                spec6_case = (lat == 0); // out_valid already high at the 1st negedge, overlapped with shot_valid
+                if(!spec5_case && !spec6_case && out_idx < gold_color.size()) begin
+                    if(out_idx == 0 && chain_num !== gold_chain) spec8_task();
+                    else if(elim_color !== gold_color[out_idx] || elim_cnt !== gold_cnt[out_idx]) spec8_task();
+                end
                 out_idx++;
                 @(negedge clk);
                 lat++;
