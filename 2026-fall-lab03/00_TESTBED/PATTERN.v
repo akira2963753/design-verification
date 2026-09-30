@@ -326,9 +326,7 @@ module PATTERN(
 
         for(int i = 0; i < pat_num; i++) begin 
             write_and_check_task();
-            $display("=============================================================");
-            $display("                     [PATTERN %0d] PASS             ", pat_num);
-            $display("=============================================================");
+            $display(" [PATTERN %0d] PASS ", i);
         end
 
         pass_task();
