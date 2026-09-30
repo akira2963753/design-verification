@@ -173,7 +173,7 @@ module PATTERN(
             CHECK_RESET_OUT: assert (chain_num === 'd0 && elim_color === 'd0 && elim_cnt === 'd0 && out_valid === 'd0)
             else begin
                 $display("=============================================================");
-                $display("   [SPEC-4 FAILED] All output signal must be zero when reset  ");
+                $display("   [SPEC-4 FAILED] All output signals must be zero when reset");
                 $display("=============================================================");
                 $fatal(1);
             end
