@@ -122,7 +122,7 @@ class coverage;
     //                       Input Sampling
     //=============================================================
 
-    local function automatic topology_typ get_topology(input txn tr);
+    function automatic topology_typ get_topology(input txn tr);
         case(tr.tar_graph)
             NO_CHAIN: return TOPO_NO_CHAIN;
             ONE_CHAIN: begin
@@ -149,7 +149,7 @@ class coverage;
         endcase
     endfunction
 
-    local function automatic void sample_input(input txn tr);
+    function automatic void sample_input(input txn tr);
         topology_typ topology;
 
         topology = get_topology(tr);
