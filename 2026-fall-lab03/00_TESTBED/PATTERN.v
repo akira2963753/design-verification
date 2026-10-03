@@ -64,7 +64,7 @@ module PATTERN(
         m = gold_ring.size();
         left = 0;
         right = 0;
-        while(left < m - 1 && gold_ring[(idx - left - 1 + m) % m] == gold_ring[idx]) left++;
+        while((left < m - 1) && (gold_ring[(idx - left - 1 + m) % m] == gold_ring[idx])) left++;
         while(left + right < m - 1 && gold_ring[(idx + right + 1) % m] == gold_ring[idx]) right++;
         start = (idx - left + m) % m;
         len = left + right + 1;
