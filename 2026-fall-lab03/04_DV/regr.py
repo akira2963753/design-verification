@@ -9,25 +9,26 @@
 #
 # ******************************************************************************
 #
-# Seed mode : run `make vcs_fast seed=<N>` for many seeds, one after another (all
+# Seed mode : run `make vcs_fast seed=<N>` for consecutive seeds, one after another (all
 #             runs share the same simv / csrc, so they cannot run in parallel).
+#             -n N --start S runs seeds S ~ S+N-1, so a whole batch replays from (N, S).
 # Fault mode: run the TA encrypted design once per injected fault (define=SPEC_x_y).
 #             Every fault must be caught (FAIL), then define=CORRECT must pass.
 #
 # Usage (in 04_DV):
-#   python3 regr.py                  # 10 random seeds
-#   python3 regr.py -n 50            # 50 random seeds
-#   python3 regr.py -s 1 7 2026      # given seeds
-#   python3 regr.py --fault          # all TA faults + CORRECT, seed 7
-#   python3 regr.py --fault -s 3     # same with seed 3
-#   python3 regr.py pat=100 -n 5     # extra make variables (before -s / -n)
+#   python3 regr.py                     # seeds 1 ~ 10
+#   python3 regr.py -n 50               # seeds 1 ~ 50
+#   python3 regr.py -n 50 --start 51    # seeds 51 ~ 100, a new batch
+#   python3 regr.py -s 3 7 2026         # given seeds
+#   python3 regr.py --fault             # all TA faults + CORRECT, seed 7
+#   python3 regr.py --fault -s 3        # same with seed 3
+#   python3 regr.py pat=100 -n 5        # extra make variables (before -s / -n)
 #
 # A run passes only if make exits 0 AND the log has "All Pass".
 # Exit code: 0 all as expected, 1 otherwise.
 
 import argparse
 import os
-import random
 import re
 import subprocess
 import sys
@@ -51,10 +52,14 @@ def parse_args():
     p = argparse.ArgumentParser(description="VCS seed / fault regression on top of the makefile")
     g = p.add_mutually_exclusive_group()
     g.add_argument("-s", "--seeds", type=int, nargs="+", help="seeds to run")
-    g.add_argument("-n", "--num", type=int, default=10, help="number of random seeds (default 10)")
+    g.add_argument("-n", "--num", type=int, default=10, help="number of consecutive seeds (default 10)")
+    p.add_argument("--start", type=int, default=1, help="first seed of -n (default 1)")
     p.add_argument("--fault", action="store_true", help="run every TA fault, then CORRECT")
     p.add_argument("make_vars", nargs="*", help="extra make variables, e.g. pat=100")
-    return p.parse_args()
+    args = p.parse_args()
+    if args.start < 1:
+        p.error("--start must be >= 1")
+    return args
 
 
 def fail_reason(log_path):
@@ -94,9 +99,16 @@ def run_one(seed, define, make_vars):
 
 
 def seed_mode(args):
-    seeds = args.seeds if args.seeds else random.sample(range(1, 2 ** 31), args.num)
+    if args.seeds:
+        seeds = args.seeds
+        batch = "-s " + " ".join(str(s) for s in seeds)
+    else:
+        seeds = list(range(args.start, args.start + args.num))
+        batch = "-n {} --start {}".format(args.num, args.start)
     print("=" * 61)
     print("  Seed regression: make {} x {} seeds".format(TARGET, len(seeds)))
+    if not args.seeds and seeds:
+        print("  seeds     : {} ~ {}".format(seeds[0], seeds[-1]))
     if args.make_vars:
         print("  make vars : {}".format(" ".join(args.make_vars)))
     print("=" * 61)
@@ -121,6 +133,10 @@ def seed_mode(args):
         print("  Rerun one seed with: make {} seed=<seed>".format(TARGET))
     else:
         print("  All seeds pass")
+    # make vars go first, -s takes every value after it
+    print("  Replay this batch : {}".format(" ".join(["python3 regr.py"] + args.make_vars + [batch])))
+    if not args.seeds:
+        print("  Next new batch    : --start {}".format(args.start + args.num))
     print("=" * 61)
     return 1 if fails else 0
 
