@@ -1,0 +1,52 @@
+ 
+****************************************
+check_design summary:
+Version:     T-2022.03
+Date:        Thu Sep 17 03:29:02 2026
+****************************************
+
+                   Name                                            Total
+--------------------------------------------------------------------------------
+Inputs/Outputs                                                     32
+    Unconnected ports (LINT-28)                                    32
+
+Nets                                                                3
+    Unloaded nets (LINT-2)                                          3
+--------------------------------------------------------------------------------
+
+Warning: In design 'F_ATTN', net 'net82' driven by pin 'C37589/Z' has no loads. (LINT-2)
+Warning: In design 'F_ATTN', net 'net81' driven by pin 'C37587/Z' has no loads. (LINT-2)
+Warning: In design 'F_ATTN', net 'net80' driven by pin 'C37582/Z' has no loads. (LINT-2)
+Warning: In design 'F_ATTN', port 'out_weight[31]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[30]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[29]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[28]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[27]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[26]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[25]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[24]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[23]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[22]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[21]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[20]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[19]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[18]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[17]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[16]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[15]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[14]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[13]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[12]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[11]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[10]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[9]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[8]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[7]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[6]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[5]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[4]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[3]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[2]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[1]' is not connected to any nets. (LINT-28)
+Warning: In design 'F_ATTN', port 'out_weight[0]' is not connected to any nets. (LINT-28)
+1

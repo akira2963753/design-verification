@@ -18,13 +18,6 @@
 //############################################################################
 
 `timescale 1ns/10ps
-`include "PATTERN.v"
-`ifdef RTL
-  `include "LDPC.v"
-`endif
-`ifdef GATE
-  `include "LDPC_SYN.v"
-`endif
  
 module TESTBED;
 
@@ -49,7 +42,7 @@ initial begin
     $fsdbDumpvars();
   `endif
   `ifdef GATE
-    $sdf_annotate("LDPC_SYN.sdf", DUT_LDPC);
+    $sdf_annotate("../02_SYN/Netlist/LDPC_SYN.sdf", DUT_LDPC);
     $fsdbDumpfile("LDPC_SYN.fsdb");
 	  $fsdbDumpvars(0,"+mda");
     $fsdbDumpvars();

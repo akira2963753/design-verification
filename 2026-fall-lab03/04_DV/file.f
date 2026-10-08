@@ -1,3 +1,3 @@
 +incdir+./component
--sverilog ./top.sv
--sverilog ./test.sv
+./top.sv
+./test.sv

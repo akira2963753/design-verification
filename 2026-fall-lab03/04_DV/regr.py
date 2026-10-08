@@ -9,9 +9,11 @@
 #
 # ******************************************************************************
 #
-# Seed mode : run `make vcs_fast seed=<N>` for consecutive seeds, one after another (all
+# Seed mode : run `make vcs_rtl_fast seed=<N>` for consecutive seeds, one after another (all
 #             runs share the same simv / csrc, so they cannot run in parallel).
 #             -n N --start S runs seeds S ~ S+N-1, so a whole batch replays from (N, S).
+#             The scoreboard latency of every passing seed is summed up, the same seeds
+#             and pat drive the same stimulus, so RTL versions can be compared directly.
 # Fault mode: run the TA encrypted design once per injected fault (define=SPEC_x_y).
 #             Every fault must be caught (FAIL), then define=CORRECT must pass.
 #
@@ -34,7 +36,7 @@ import subprocess
 import sys
 import time
 
-TARGET = "vcs_fast"
+TARGET = "vcs_rtl_fast"
 LOG_DIR = "report"
 PASS_KEY = "All Pass"
 # Fail reason: first line of the highest-priority pattern found in the log
@@ -44,6 +46,9 @@ FAIL_KEYS = [
     re.compile(r"FAIL|Timeout"),
     re.compile(r"Error-\[|Fatal"),
 ]
+# Scoreboard summary lines, printed only when the whole run passes
+LAT_KEY = re.compile(r"Latency: total = (\d+), max = (\d+)")
+SHOT_KEY = re.compile(r"pass shots = (\d+)")
 # Same fault list as 01_RTL/07_check_pattern: (SPEC, number of faults)
 FAULTS = ["SPEC_{}_{}".format(s, i) for s, n in ((4, 4), (5, 5), (6, 2), (7, 1), (8, 10), (9, 2)) for i in range(1, n + 1)]
 
@@ -73,6 +78,20 @@ def fail_reason(log_path):
             if key.search(line):
                 return line.strip()
     return "no \"All Pass\" in log"
+
+
+def latency(log_path):
+    """(total, max, shots) of the scoreboard summary, None if the log has no summary."""
+    try:
+        with open(log_path, errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return None
+    lat = LAT_KEY.search(text)
+    shot = SHOT_KEY.search(text)
+    if not lat or not shot:
+        return None
+    return int(lat.group(1)), int(lat.group(2)), int(shot.group(1))
 
 
 def run_one(seed, define, make_vars):
@@ -114,10 +133,19 @@ def seed_mode(args):
     print("=" * 61)
 
     fails = []
+    lat_total, lat_max, lat_seed, lat_shots = 0, 0, None, 0
     t_all = time.time()
     for i, seed in enumerate(seeds, 1):
         passed, sec, log_path, reason = run_one(seed, "CORRECT", args.make_vars)
-        print("[{:>3}/{}] seed {:>10} : {}  ({:.1f} s)".format(i, len(seeds), seed, "PASS" if passed else "FAIL", sec))
+        line = "[{:>3}/{}] seed {:>10} : {}  ({:.1f} s)".format(i, len(seeds), seed, "PASS" if passed else "FAIL", sec)
+        lat = latency(log_path) if passed else None
+        if lat:
+            line += "  latency total {}, max {}".format(lat[0], lat[1])
+            lat_total += lat[0]
+            lat_shots += lat[2]
+            if lat_seed is None or lat[1] > lat_max:
+                lat_max, lat_seed = lat[1], seed
+        print(line)
         if not passed:
             fails.append((seed, log_path, reason))
             print("                      {}".format(reason))
@@ -125,6 +153,10 @@ def seed_mode(args):
 
     print("=" * 61)
     print("  Summary: {} / {} pass, total {:.1f} s".format(len(seeds) - len(fails), len(seeds), time.time() - t_all))
+    # Passing seeds only, a failed run stops before the scoreboard summary
+    if lat_shots:
+        print("  Latency : total {} cycles, max {} (seed {}), avg {:.2f} cycles / shot".format(
+            lat_total, lat_max, lat_seed, lat_total / lat_shots))
     if fails:
         print("  Failed seeds:")
         for seed, log_path, reason in fails:

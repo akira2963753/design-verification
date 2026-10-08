@@ -1,0 +1,1356 @@
+<title>F_ATTN 架構說明書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: single reading column (datasheet style) split into Part A (problem) and Part B (architecture); wide figures scroll in their own boxes; matrix colors follow the spec's own legend */
+:root {
+  --bg: #f5f6f4;
+  --paper: #ffffff;
+  --fg: #1d2420;
+  --muted: #5d6862;
+  --line: #d6dbd7;
+  --accent: #1f5f8b;
+  --warn: #b3261e;
+  --warn-bg: #fdecea;
+  --note-bg: #eef4f8;
+  --ok: #2b7a3d;
+  --ok-bg: #e8f4ea;
+  /* matrix legend (same hues as the TA figures) */
+  --m-q: #f8d5c0;
+  --m-k: #c9d8f0;
+  --m-s: #d4ecc9;
+  --m-p: #2f9e44;
+  --m-v: #e6e6e6;
+  --m-o: #f2b8c0;
+  --m-h: #9b72e0;
+  --m-w: #f7d98b;
+  --m-edge: #6b7570;
+  --hi: #ffcf3f;
+  --font-display: "Noto Serif TC", "Songti TC", serif;
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141917; --paper: #1c2320; --fg: #e4e9e6; --muted: #9aa69f; --line: #34403a;
+    --accent: #7cb8e4; --warn: #ff8a80; --warn-bg: #3a1f1d; --note-bg: #1c2a35;
+    --ok: #7fd68f; --ok-bg: #1d3323;
+    --m-q: #8a5a40; --m-k: #3d5683; --m-s: #3f6b3a; --m-p: #5fcf74; --m-v: #555c58;
+    --m-o: #8c4a55; --m-h: #8d6ad1; --m-w: #8a7330; --m-edge: #a3aea8; --hi: #e0b020;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141917; --paper: #1c2320; --fg: #e4e9e6; --muted: #9aa69f; --line: #34403a;
+  --accent: #7cb8e4; --warn: #ff8a80; --warn-bg: #3a1f1d; --note-bg: #1c2a35;
+  --ok: #7fd68f; --ok-bg: #1d3323;
+  --m-q: #8a5a40; --m-k: #3d5683; --m-s: #3f6b3a; --m-p: #5fcf74; --m-v: #555c58;
+  --m-o: #8c4a55; --m-h: #8d6ad1; --m-w: #8a7330; --m-edge: #a3aea8; --hi: #e0b020;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.75; }
+.wrap { max-width: 920px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; display: flex; flex-direction: column; gap: 56px; }
+header { display: flex; flex-direction: column; gap: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 13px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+h1 { font-family: var(--font-display); font-weight: 900; font-size: clamp(30px, 6vw, 46px); line-height: 1.2; margin: 0; text-wrap: balance; }
+h1 .en { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 15px; color: var(--muted); margin-top: 6px; letter-spacing: .02em; }
+h2 { font-family: var(--font-display); font-size: 26px; margin: 0; text-wrap: balance; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+h2 .no { font-family: var(--font-mono); font-size: 15px; color: var(--accent); }
+h2 .en { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-weight: 400; }
+h3 { font-size: 18px; margin: 0; padding-top: 6px; }
+h4 { font-size: 16px; margin: 0; }
+section { display: flex; flex-direction: column; gap: 18px; }
+p { margin: 0; max-width: 70ch; }
+code, .mono { font-family: var(--font-mono); font-size: .9em; }
+code { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+b, strong { font-weight: 700; }
+a { color: var(--accent); }
+.lead { font-size: 18px; max-width: 66ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
+.meta b { color: var(--fg); font-weight: 500; }
+nav.toc { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+nav.toc div { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+nav.toc .ph { font-weight: 700; font-size: 13px; color: var(--muted); letter-spacing: .04em; margin-bottom: 4px; }
+nav.toc a { text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.part { border-top: 3px solid var(--fg); padding-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.part .pl { font-family: var(--font-mono); font-size: 13px; letter-spacing: .1em; color: var(--accent); }
+.part .pt { font-family: var(--font-display); font-weight: 900; font-size: 32px; line-height: 1.25; }
+.part p { color: var(--muted); }
+
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.facts div { background: var(--paper); padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+.facts .v { font-family: var(--font-mono); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.facts .k { font-size: 13px; color: var(--muted); }
+
+.fig { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.fig .scroll, .scroll { overflow-x: auto; }
+.cap { font-size: 13px; color: var(--muted); }
+svg text { fill: var(--fg); font-family: var(--font-body); }
+svg .mono { font-family: var(--font-mono); }
+svg .muted { fill: var(--muted); }
+
+.callout { border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; }
+.callout.warn { background: var(--warn-bg); border-left: 4px solid var(--warn); }
+.callout.note { background: var(--note-bg); border-left: 4px solid var(--accent); }
+.callout.why { background: var(--ok-bg); border-left: 4px solid var(--ok); }
+.callout .t { font-weight: 700; }
+.callout.warn .t { color: var(--warn); }
+.callout.why .t { color: var(--ok); }
+
+.rgrid { display: grid; gap: 2px; font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.rgrid span { display: flex; align-items: center; justify-content: center; min-width: 30px; height: 20px; border-radius: 2px; }
+.rgrid .h { color: var(--muted); }
+.rgrid .c1 { background: var(--m-q); }
+.rgrid .c2 { background: var(--m-k); }
+.rgrid .cw { background: var(--m-w); }
+.grids { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+
+.pipe { display: flex; flex-direction: column; }
+.step { display: grid; grid-template-columns: 44px 1fr; gap: 14px; }
+.step .num { font-family: var(--font-mono); font-weight: 600; color: var(--accent); display: flex; flex-direction: column; align-items: center; }
+.step .num::after { content: ""; flex: 1; width: 2px; background: var(--line); margin-top: 6px; }
+.step:last-child .num::after { display: none; }
+.step .body { padding-bottom: 22px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.shape { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 13px; }
+.mat { display: inline-grid; gap: 1px; padding: 1px; background: var(--m-edge); vertical-align: middle; }
+.mat i { display: block; width: 9px; height: 9px; }
+.op { color: var(--muted); }
+
+math { font-size: 1.12em; }
+.eq { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px; overflow-x: auto; display: flex; flex-direction: column; gap: 10px; }
+.eq .row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.eq .why { font-size: 14px; color: var(--muted); }
+
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 8px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 13px; color: var(--muted); font-weight: 500; background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.mono, td .mono { white-space: nowrap; }
+.tag { display: inline-block; font-size: 12px; padding: 0 7px; border-radius: 999px; border: 1px solid currentColor; line-height: 1.6; white-space: nowrap; }
+.tag.red { color: var(--warn); }
+.tag.ok { color: var(--ok); }
+.tag.blue { color: var(--accent); }
+
+.bits { display: flex; flex-wrap: nowrap; gap: 1px; font-family: var(--font-mono); font-size: 12px; }
+.bits span { width: 20px; height: 26px; display: flex; align-items: center; justify-content: center; }
+.bits .s { background: var(--m-k); }
+.bits .e { background: var(--m-s); }
+.bits .f { background: var(--m-o); }
+
+.demo-ctrl, .ctrl { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 14px; }
+.ctrl label { display: flex; gap: 8px; align-items: center; }
+.ctrl input[type=range] { width: 180px; }
+.ctrl output { font-family: var(--font-mono); min-width: 9ch; }
+button { font: inherit; font-size: 14px; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--paper); color: var(--accent); cursor: pointer; }
+button.primary { background: var(--accent); color: var(--paper); }
+button:disabled { opacity: .4; cursor: default; }
+.demo-tbl td, .demo-tbl th { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; padding: 6px 10px; white-space: nowrap; }
+.demo-tbl tr.cur td { background: var(--note-bg); }
+.demo-tbl tr.pending td { color: var(--muted); opacity: .5; }
+.verdict { font-family: var(--font-mono); font-size: 14px; }
+
+pre.code { margin: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.7; }
+pre.code .c { color: var(--muted); }
+.badge { display: inline-block; font-family: var(--font-mono); font-size: 12px; padding: 0 8px; border-radius: 4px; background: var(--note-bg); color: var(--accent); white-space: nowrap; }
+.istep { display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: start; }
+.istep > .k { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--accent); padding-top: 4px; }
+.istep > div { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ol { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; max-width: 72ch; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+.two > * { min-width: 0; }
+footer { font-size: 13px; color: var(--muted); }
+@media (max-width: 520px) { .istep { grid-template-columns: 1fr; gap: 4px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">NYCU-EE ICLAB 2026 Fall · Lab04 · F_ATTN</div>
+  <h1>F_ATTN 架構說明書<span class="en">Simplified FlashAttention Forward Engine · Architecture Spec</span></h1>
+  <p class="lead">Part A 整理題目本身：輸入輸出、運算定義、規格限制。Part B 是我們討論出來的硬體架構：每一個設計決定是什麼、為什麼這樣做、考慮過哪些替代方案、還有哪些地方要等量測或跟助教確認。</p>
+  <div class="meta"><span><b>狀態</b>　架構討論中，RTL 未開始</span><span><b>更新</b>　2026-10-07</span><span><b>依據</b>　docs/2026F_Lab04_Exercise.pdf (10 頁)</span></div>
+  <nav class="toc" aria-label="目錄">
+    <div>
+      <span class="ph">PART A　題目</span>
+      <a href="#a1">A1 一眼看懂</a>
+      <a href="#a2">A2 I/O 腳位</a>
+      <a href="#a3">A3 輸入的時序與順序</a>
+      <a href="#a4">A4 計算定義與 FlashAttention</a>
+      <a href="#a5">A5 Online softmax 與互動示範</a>
+      <a href="#a6">A6 浮點格式</a>
+      <a href="#a7">A7 規格限制、評分、繳交</a>
+    </div>
+    <div>
+      <span class="ph">PART B　架構</span>
+      <a href="#b1">B1 架構總覽</a>
+      <a href="#b2">B2 設計方向的推導</a>
+      <a href="#b3">B3 儲存架構</a>
+      <a href="#b4">B4 一個 Q_block 的運算</a>
+      <a href="#b5">B5 計算 pipeline</a>
+      <a href="#b6">B6 輸出路徑</a>
+      <a href="#b7">B7 整體時間線</a>
+      <a href="#b8">B8 資源預算</a>
+      <a href="#b9">B9 精度考量</a>
+      <a href="#b10">B10 考慮過但不採用的方案</a>
+      <a href="#b11">B11 待確認、待量測、下一步</a>
+    </div>
+  </nav>
+</header>
+
+<!-- ############################################################ PART A -->
+<div class="part">
+  <span class="pl">PART A</span>
+  <span class="pt">題目</span>
+  <p>這部分只整理 spec 的內容，不含我們的設計選擇。</p>
+</div>
+
+<section id="a1">
+  <h2><span class="no">A1</span>一眼看懂<span class="en">At a glance</span></h2>
+  <p>用 Verilog 做一個<b>雙頭 (two-head)</b> 的 FlashAttention：吃進 16 個 token 的 Q / K / V (每個 4 維) 和一個 4×4 的輸出權重 W，用 <b>2×2 的 block</b> 一塊一塊算 attention，最後經過 linear layer 輸出 16×4 = 64 個 IEEE-754 單精度浮點數。</p>
+  <div class="facts">
+    <div><span class="v">16</span><span class="k">tokens (N)</span></div>
+    <div><span class="v">4</span><span class="k">embedding 維度 (d)</span></div>
+    <div><span class="v">2</span><span class="k">heads，每個 head_dim = 2</span></div>
+    <div><span class="v">2×2</span><span class="k">block / tile 大小</span></div>
+    <div><span class="v">64</span><span class="k">輸入 / 輸出 cycle 數</span></div>
+    <div><span class="v">≤1000</span><span class="k">latency 上限 (cycles)</span></div>
+    <div><span class="v">≤50ns</span><span class="k">clock period 上限</span></div>
+    <div><span class="v">1e-7</span><span class="k">允許的絕對誤差</span></div>
+  </div>
+  <div class="eq">
+    <div class="row">
+      <math display="block"><mrow><msub><mi>Head</mi><mi>h</mi></msub><mo>=</mo><mi>softmax</mi><mo>(</mo><mfrac><mrow><msub><mi>Q</mi><mi>h</mi></msub><msubsup><mi>K</mi><mi>h</mi><mi>T</mi></msubsup></mrow><msqrt><mn>2</mn></msqrt></mfrac><mo>)</mo><msub><mi>V</mi><mi>h</mi></msub><mspace width="2em"/><mi>Final</mi><mo>=</mo><mo>[</mo><msub><mi>Head</mi><mn>1</mn></msub><mo>|</mo><msub><mi>Head</mi><mn>2</mn></msub><mo>]</mo><mo>·</mo><msup><mi>W</mi><mi>T</mi></msup></mrow></math>
+    </div>
+    <div class="why">數學上就是標準的 multi-head attention。FlashAttention 的差別在「怎麼算」：不存整個 16×16 的 score 矩陣，而是 2×2 一塊一塊算，用 online softmax 邊算邊修正。</div>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>矩陣</th><th>大小</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr><td>Q、K、V</td><td class="mono">16×4</td><td>輸入，16 個 token × 4 維</td></tr>
+      <tr><td>W (out_weight)</td><td class="mono">4×4</td><td>輸入，linear layer 權重</td></tr>
+      <tr><td>Score (每個 head)</td><td class="mono">16×16</td><td>中間結果 Q_h·K_hᵀ，每個 token 對 16 個 token 的注意力分數。FlashAttention 不會整個存下來</td></tr>
+      <tr><td>Head_out (每個 head)</td><td class="mono">16×2</td><td>中間結果</td></tr>
+      <tr><td>Final</td><td class="mono">16×4</td><td>輸出，64 個數，連續 64 拍送出</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="a2">
+  <h2><span class="no">A2</span>I/O 腳位<span class="en">Ports</span></h2>
+  <p>Top module <code>F_ATTN</code>，檔名 <code>F_ATTN.v</code>。所有資料線都是 32-bit IEEE-754 單精度浮點數 (FP32)。</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Signal</th><th>方向</th><th>寬度</th><th>說明</th><th>數值範圍</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">clk</td><td>in</td><td class="mono">1</td><td>Clock</td><td></td></tr>
+      <tr><td class="mono">rst_n</td><td>in</td><td class="mono">1</td><td><b>非同步、低態有效</b> reset，只在模擬開頭給一次</td><td></td></tr>
+      <tr><td class="mono">in_valid</td><td>in</td><td class="mono">1</td><td>拉高 <b>64 cycles</b>，期間輸入有效</td><td></td></tr>
+      <tr><td class="mono">Q</td><td>in</td><td class="mono">32</td><td>Query，raster 順序，64 cycles</td><td class="mono">±0 ~ 0.5</td></tr>
+      <tr><td class="mono">K</td><td>in</td><td class="mono">32</td><td>Key，raster 順序，64 cycles</td><td class="mono">±0.5 ~ 255.0 <span class="tag red">待確認</span></td></tr>
+      <tr><td class="mono">V</td><td>in</td><td class="mono">32</td><td>Value，raster 順序，64 cycles</td><td class="mono">±0 ~ 0.5</td></tr>
+      <tr><td class="mono">out_weight</td><td>in</td><td class="mono">32</td><td>W，4×4，raster 順序，<b>只有前 16 cycles</b>，之後是 X</td><td class="mono">±0 ~ 0.5</td></tr>
+      <tr><td class="mono">out_valid</td><td>out</td><td class="mono">1</td><td>連續拉高 <b>64 cycles</b>；不可和 in_valid 重疊</td><td></td></tr>
+      <tr><td class="mono">out</td><td>out</td><td class="mono">32</td><td>Final，raster 順序；out_valid 為低時必須是 <b>0</b></td><td></td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap">TA 給的 01_RTL/F_ATTN.v 已宣告 DesignWare 參數：<code>inst_sig_width = 23</code>、<code>inst_exp_width = 8</code>、<code>inst_ieee_compliance = 0</code> (denormal 會被 flush 成 0)。</p>
+</section>
+
+<section id="a3">
+  <h2><span class="no">A3</span>輸入的時序與順序<span class="en">Input timing &amp; raster order</span></h2>
+  <div class="fig">
+    <div class="scroll">
+    <svg viewBox="0 0 800 250" width="800" role="img" aria-label="輸入輸出時序示意圖">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--accent)"/></marker>
+        <marker id="ar2s" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M10 0 L0 5 L10 10z" fill="var(--accent)"/></marker>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--accent)"/></marker>
+        <marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--fg)"/></marker>
+      </defs>
+      <g class="mono" font-size="12">
+        <text x="0" y="34">in_valid</text>
+        <text x="0" y="74">Q / K / V</text>
+        <text x="0" y="114">out_weight</text>
+        <text x="0" y="164">out_valid</text>
+        <text x="0" y="204">out</text>
+      </g>
+      <path d="M100 40 H130 V22 H370 V40 H760" stroke="var(--fg)" fill="none" stroke-width="1.6"/>
+      <path d="M100 72 H130" stroke="var(--muted)"/><path d="M370 72 H500" stroke="var(--muted)"/>
+      <path d="M130 64 H370 L374 72 L370 80 H130 L126 72 Z" fill="var(--m-q)" stroke="var(--m-edge)"/>
+      <text x="250" y="76" text-anchor="middle" font-size="12">64 cycles：token 1 dim1 → … → token 16 dim4</text>
+      <path d="M130 104 H190 L194 112 L190 120 H130 L126 112 Z" fill="var(--m-w)" stroke="var(--m-edge)"/>
+      <text x="160" y="116" text-anchor="middle" font-size="11">16 cyc</text>
+      <rect x="194" y="104" width="176" height="16" fill="none" stroke="var(--muted)" stroke-dasharray="3 3"/>
+      <text x="282" y="116" text-anchor="middle" font-size="11" class="muted">X (unknown)</text>
+      <line x1="370" y1="135" x2="520" y2="135" stroke="var(--accent)" marker-end="url(#ar2)" marker-start="url(#ar2s)"/>
+      <text x="445" y="130" text-anchor="middle" font-size="12" fill="var(--accent)">latency ≤ 1000 cycles</text>
+      <path d="M100 170 H520 V152 H700 V170 H760" stroke="var(--fg)" fill="none" stroke-width="1.6"/>
+      <path d="M100 202 H520" stroke="var(--fg)"/><text x="310" y="196" text-anchor="middle" font-size="11" class="muted">out = 0</text>
+      <path d="M520 194 H700 L704 202 L700 210 H520 L516 202 Z" fill="var(--m-h)" stroke="var(--m-edge)" opacity=".85"/>
+      <text x="610" y="206" text-anchor="middle" font-size="12">64 cycles 連續</text>
+      <path d="M704 202 H760" stroke="var(--fg)"/>
+      <text x="100" y="240" font-size="12" class="muted">輸入在 clk 負緣變化 · latency 從 in_valid 下降緣量到「第一個」out_valid 上升緣 · 下一筆在 2~4 個負緣後到來 (示意，未按比例)</text>
+    </svg>
+    </div>
+  </div>
+  <div class="callout note">
+    <div class="t">每個 cycle 每條線只進來一個 FP32</div>
+    <p>Q、K、V、out_weight 各只有一條 32-bit 的線，<b>一拍只送一個數 (一個維度)</b>，一個 token 的 4 維要 4 拍才送完。<b>Q、K、V 三條線同一拍各送一個數，而且是同一個 token 的同一維</b>，例如 cycle 5 會同時收到 Q、K、V 的 token 1 dim 1 (從 0 數)。out_weight 也同時開始，但只有前 16 拍有效。</p>
+  </div>
+  <p><b>Raster order</b> = row-major。第 <code>c</code> 拍 (從 0 數) 送進來的是 <code>token = c / 4</code>、<code>dim = c % 4</code>。dim 0、1 屬於 Head 1，dim 2、3 屬於 Head 2。格子裡的數字是它在第幾拍進來：</p>
+  <div class="fig">
+    <div class="grids">
+      <div>
+        <div class="cap" style="margin-bottom:6px">Q / K / V (16×4)，<span style="background:var(--m-q);padding:0 4px">Head 1</span> <span style="background:var(--m-k);padding:0 4px">Head 2</span></div>
+        <div class="rgrid" id="g-qkv" style="grid-template-columns: 34px repeat(4, 34px)"></div>
+      </div>
+      <div>
+        <div class="cap" style="margin-bottom:6px">out_weight W (4×4)，前 16 拍</div>
+        <div class="rgrid" id="g-w" style="grid-template-columns: 34px repeat(4, 34px)"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="a4">
+  <h2><span class="no">A4</span>計算定義與 FlashAttention<span class="en">Computation &amp; tiling</span></h2>
+  <p>顏色對應 spec 圖上的配色：<span style="background:var(--m-q);padding:0 4px">Q</span> <span style="background:var(--m-k);padding:0 4px">K</span> <span style="background:var(--m-s);padding:0 4px">Score</span> <span style="background:var(--m-p);color:#fff;padding:0 4px">P</span> <span style="background:var(--m-v);padding:0 4px">V</span> <span style="background:var(--m-o);padding:0 4px">O_acc</span> <span style="background:var(--m-h);color:#fff;padding:0 4px">Head_out</span> <span style="background:var(--m-w);padding:0 4px">W</span></p>
+  <div class="pipe">
+    <div class="step"><div class="num">1</div><div class="body">
+      <h3>切 head</h3>
+      <div class="shape"><span class="mat" data-m="q" data-r="4" data-c="4"></span> Q 16×4 <span class="op">→</span> <span class="mat" data-m="q" data-r="4" data-c="2"></span> Q_head1 16×2 <span class="op">+</span> <span class="mat" data-m="q" data-r="4" data-c="2"></span> Q_head2 16×2</div>
+      <p>每個 token 的前 2 維給 Head 1、後 2 維給 Head 2，K、V 也一樣。兩個 head 完全獨立。</p>
+    </div></div>
+    <div class="step"><div class="num">2</div><div class="body">
+      <h3>Score = Q·Kᵀ / √2</h3>
+      <div class="shape"><span class="mat" data-m="q" data-r="4" data-c="2"></span> 16×2 <span class="op">×</span> <span class="mat" data-m="k" data-r="2" data-c="4"></span> 2×16 <span class="op">÷ √2 →</span> <span class="mat" data-m="s" data-r="4" data-c="4"></span> 16×16</div>
+      <p>head_dim = 2，所以除以 √2，必須用 TA 給的常數 <code>sqare_root_2 = 32'h3FB504F3</code>。</p>
+    </div></div>
+    <div class="step"><div class="num">3</div><div class="body">
+      <h3>分塊 + online softmax</h3>
+      <div class="shape"><span class="mat" data-m="s" data-r="2" data-c="2"></span> Score_Tile <span class="op">→ softmax →</span> <span class="mat" data-m="p" data-r="2" data-c="2"></span> P_tile <span class="op">×</span> <span class="mat" data-m="v" data-r="2" data-c="2"></span> V_block <span class="op">→</span> <span class="mat" data-m="o" data-r="2" data-c="2"></span> O_acc</div>
+      <p>每個 Q_block (2 個 token) 依序和 8 個 K_block 配對，每來一個 2×2 tile 就更新一次這 2 列的累加值。spec 寫「Renew O_acc 8 times」。</p>
+    </div></div>
+    <div class="step"><div class="num">4</div><div class="body">
+      <h3>正規化 Head_out = O_acc / l</h3>
+      <div class="shape"><span class="mat" data-m="o" data-r="2" data-c="2"></span> ÷ l <span class="op">→</span> <span class="mat" data-m="h" data-r="4" data-c="2"></span> Head_out 16×2</div>
+    </div></div>
+    <div class="step"><div class="num">5</div><div class="body">
+      <h3>Concat + Linear：Final = [Head1 | Head2]·Wᵀ</h3>
+      <div class="shape"><span class="mat" data-m="h" data-r="4" data-c="4"></span> 16×4 <span class="op">×</span> <span class="mat" data-m="w" data-r="4" data-c="4"></span> Wᵀ 4×4 <span class="op">→</span> <span class="mat" data-m="s" data-r="4" data-c="4"></span> Final 16×4</div>
+      <p><code>Final[t][k] = H1[t][0]·W[k][0] + H1[t][1]·W[k][1] + H2[t][0]·W[k][2] + H2[t][1]·W[k][3]</code>，也就是 token t 的 4 維和 W 的第 k 列做內積。兩個 head 各自只看 2 維，乘 W 讓兩者混合、投影回 4 維。</p>
+    </div></div>
+  </div>
+
+  <div class="fig">
+    <h3>Tiling：16×16 怎麼切</h3>
+    <div class="two">
+      <div class="scroll"><svg id="tile-svg" viewBox="0 0 330 330" width="330" role="img" aria-label="16x16 score 矩陣被切成 64 個 2x2 tile"></svg></div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <p>block size = 2：Q 切成 8 個 Q_block、Kᵀ 切成 8 個 K_block，每個 head 共 <b>64 個 2×2 tile</b>，兩個 head 共 128 個。</p>
+        <p>黃色那一列是 Q_block 0 (token 0、1)。它依序和 K_block 0 ~ 7 算出 8 個 tile，每算一個就更新一次累加值。8 個做完就得到 token 0、1 的 Head_out。</p>
+        <p class="cap">外層 loop：Q_block i = 0..7 ・ 內層 loop：K_block j = 0..7。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="a5">
+  <h2><span class="no">A5</span>Online softmax 與互動示範<span class="en">Running max / sum / accumulator</span></h2>
+  <p>一般 softmax 先找整列最大值 m 再算，減掉 m 讓指數 ≤ 0，避免 e^S 溢位成 Infinity：</p>
+  <div class="eq"><div class="row">
+    <math display="block"><mrow><msub><mi>P</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mfrac><msup><mi>e</mi><mrow><msub><mi>S</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>−</mo><msub><mi>m</mi><mi>i</mi></msub></mrow></msup><mrow><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><msup><mi>e</mi><mrow><msub><mi>S</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>−</mo><msub><mi>m</mi><mi>i</mi></msub></mrow></msup></mrow></mfrac><mspace width="2em"/><msub><mi>m</mi><mi>i</mi></msub><mo>=</mo><munder><mi>max</mi><mi>j</mi></munder><msub><mi>S</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></math>
+  </div></div>
+  <p>tile 是一塊一塊來的，看到第 1 塊時還不知道整列的最大值。online softmax 先用目前的最大值算，最大值變大時再把舊的累加結果乘上 <math><msup><mi>e</mi><mrow><msub><mi>m</mi><mi>old</mi></msub><mo>−</mo><msub><mi>m</mi><mi>new</mi></msub></mrow></msup></math> 修正。spec 的公式：</p>
+  <div class="eq">
+    <div class="row"><math display="block"><mrow><msub><mi>m</mi><mi>new</mi></msub><mo>=</mo><mi>max</mi><mo>(</mo><msub><mi>m</mi><mi>old</mi></msub><mo>,</mo><mi>rowmax</mi><mo>(</mo><msub><mi>S</mi><mi>tile</mi></msub><mo>)</mo><mo>)</mo></mrow></math></div>
+    <div class="row"><math display="block"><mrow><msub><mi>l</mi><mi>new</mi></msub><mo>=</mo><msup><mi>e</mi><mrow><msub><mi>m</mi><mi>old</mi></msub><mo>−</mo><msub><mi>m</mi><mi>new</mi></msub></mrow></msup><msub><mi>l</mi><mi>old</mi></msub><mo>+</mo><mi>rowsum</mi><mo>(</mo><msup><mi>e</mi><mrow><msub><mi>S</mi><mi>tile</mi></msub><mo>−</mo><msub><mi>m</mi><mi>new</mi></msub></mrow></msup><mo>)</mo></mrow></math></div>
+    <div class="row"><math display="block"><mrow><msub><mi>O</mi><mrow><mi>acc</mi><mo>,</mo><mi>new</mi></mrow></msub><mo>=</mo><msup><mi>e</mi><mrow><msub><mi>m</mi><mi>old</mi></msub><mo>−</mo><msub><mi>m</mi><mi>new</mi></msub></mrow></msup><msub><mi>O</mi><mrow><mi>acc</mi><mo>,</mo><mi>old</mi></mrow></msub><mo>+</mo><msup><mi>e</mi><mrow><msub><mi>S</mi><mi>tile</mi></msub><mo>−</mo><msub><mi>m</mi><mi>new</mi></msub></mrow></msup><msub><mi>V</mi><mi>tile</mi></msub></mrow></math></div>
+    <div class="row"><math display="block"><mrow><mi>Head_Out</mi><mo>=</mo><msub><mi>O</mi><mi>acc</mi></msub><mo>/</mo><mi>l</mi></mrow></math><span class="why">8 個 tile 都做完後才除</span></div>
+  </div>
+  <p>互動示範：隨機產生 1 個 query (2 維) 和 16 個 key / value，範圍照 spec。一步一步餵 8 個 tile，看 Max、D (分母)、M (分子) 怎麼變，最後和一次算完整列的標準 softmax 比對。運算用 <code>Math.fround</code> 模擬 float32。名稱用 Part B 的命名 (見 <a href="#b4">B4</a>)。</p>
+  <div class="fig">
+    <div class="demo-ctrl">
+      <button id="d-new" type="button">重新產生資料</button>
+      <button id="d-step" type="button" class="primary">下一個 tile</button>
+      <button id="d-all" type="button">全部跑完</button>
+      <span class="cap" id="d-info"></span>
+    </div>
+    <div class="tbl"><table class="demo-tbl">
+      <thead><tr><th>tile j</th><th>Sa0</th><th>Sa1</th><th>Max_a</th><th>Ca</th><th>Da</th><th>Ma0</th><th>Ma1</th></tr></thead>
+      <tbody id="d-body"></tbody>
+    </table></div>
+    <div class="verdict" id="d-verdict"></div>
+  </div>
+</section>
+
+<section id="a6">
+  <h2><span class="no">A6</span>浮點格式<span class="en">IEEE-754 FP32</span></h2>
+  <p>32 bit = 1 bit sign + 8 bit exponent (bias 127) + 23 bit fraction，值 = (−1)<sup>s</sup> × 1.f × 2<sup>e−127</sup>。以 TA 給的 √2 常數為例：</p>
+  <div class="fig">
+    <div class="scroll"><div class="bits" id="bits"></div></div>
+    <p class="mono" style="font-size:14px">sqare_root_2 = 32'h3FB504F3 ・ sign + ・ exponent 127 − 127 = 0 ・ <b>value ≈ 1.4142135</b></p>
+    <p class="cap">parameter 名稱是 TA 拼的 <code>sqare_root_2</code> (少了 u)。spec 強調「Please follow the parameter TA set」。</p>
+  </div>
+  <div class="two">
+    <div class="callout warn">
+      <div class="t">Infinity (spec 特別提醒)</div>
+      <p>|Q| ≤ 0.5、|K| ≤ 255，|S| 最大約 2 × 0.5 × 255 / √2 ≈ <b>180</b>。float32 的 e<sup>x</sup> 在 x &gt; 88.7 就溢位。所以一定要先減 running max，讓指數 ≤ 0；e<sup>S−m</sup> 很小時 underflow 成 0 沒關係。</p>
+    </div>
+    <div class="callout warn">
+      <div class="t">誤差只允許 1e-7 (絕對值)</div>
+      <p>輸出量級大約 0.1 ~ 1，float32 在 0.5 附近的 1 ulp ≈ 6e-8，等於<b>只容許差 1 ~ 2 個 ulp</b>。運算順序都可能影響是否過關 (見 <a href="#b9">B9</a>)。</p>
+    </div>
+  </div>
+</section>
+
+<section id="a7">
+  <h2><span class="no">A7</span>規格限制、評分、繳交<span class="en">Specifications</span></h2>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>規定</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Top module <code>F_ATTN</code>，檔名 <code>F_ATTN.v</code></td><td></td></tr>
+      <tr><td>2</td><td>轉成浮點後誤差須 &lt; 1e-7</td><td><span class="tag red">fail</span></td></tr>
+      <tr><td>3</td><td>非同步、低態有效 reset</td><td><span class="tag red">fail</span></td></tr>
+      <tr><td>4</td><td>rst_n 只在開頭給一次，reset 後所有 output 要歸零</td><td></td></tr>
+      <tr><td>5</td><td>out_valid 拉低後 out 要回到 0</td><td></td></tr>
+      <tr><td>6</td><td>Latency ≤ <b>1000 cycles</b>：in_valid 下降緣 → <b>第一個</b> out_valid 上升緣</td><td></td></tr>
+      <tr><td>7</td><td>下一筆輸入在 2 ~ 4 個負緣後到來</td><td></td></tr>
+      <tr><td>8</td><td>Area ≤ <b>4,000,000</b>；合成時間 &lt; 3 小時</td><td></td></tr>
+      <tr><td>9</td><td>Clock period 自訂，最大 <b>50 ns</b>，精度 0.1</td><td></td></tr>
+      <tr><td>10–11</td><td>Input / output delay = 0.5 × period；output load 0.05</td><td></td></tr>
+      <tr><td>12</td><td>wire / reg / submodule 名稱不可含 <code>error</code> <code>fail</code> <code>pass</code> <code>congratulation</code> <code>latch</code> <code>DW_fp</code></td><td><span class="tag red">fail</span></td></tr>
+      <tr><td>13</td><td>合成結果不可有 latch</td><td><span class="tag red">fail</span></td></tr>
+      <tr><td>14</td><td>Timing slack ≥ 0 (MET)，area 才算數</td><td></td></tr>
+      <tr><td>15</td><td>至少使用一個 DesignWare IEEE FP IP (查 <code>F_ATTN.resource</code>)</td><td><span class="tag red">fail</span></td></tr>
+      <tr><td>—</td><td>Gate-level sim 出現 timing violation 一律 fail</td><td><span class="tag red">fail</span></td></tr>
+      <tr><td>—</td><td>PATTERN.v 的 <code>CYCLE_TIME</code> 要和 syn.tcl 的 <code>CYCLE</code> 一致</td><td></td></tr>
+    </tbody>
+  </table></div>
+  <div class="two">
+    <div class="eq">
+      <div class="row"><b>Function 70%</b> + <b>Performance 30%</b></div>
+      <div class="row"><math display="block"><mrow><mi>Performance</mi><mo>∝</mo><msup><mi>Area</mi><mn>2</mn></msup><mo>×</mo><mi>Latency</mi><mo>×</mo><msub><mi>T</mi><mi>clk</mi></msub></mrow></math></div>
+      <div class="why">越小越好。2nd demo 分數 ×0.7。這個公式決定了 Part B 的大部分取捨 (見 <a href="#b2">B2</a>)。</div>
+    </div>
+    <div class="tbl"><table>
+      <tbody>
+        <tr><th>1st demo</th><td class="mono">10/12 (Mon) 12:00</td></tr>
+        <tr><th>2nd demo</th><td class="mono">10/14 (Wed) 12:00</td></tr>
+        <tr><th>繳交</th><td class="mono">09_SUBMIT/Lab04_iclabXXX/<br>F_ATTN_iclabXXX.v<br>filelist_iclabXXX.f<br>clock_period_iclabXXX.txt</td></tr>
+        <tr><th>命名錯誤</th><td>扣 5 分</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ############################################################ PART B -->
+<div class="part">
+  <span class="pl">PART B</span>
+  <span class="pt">架構</span>
+  <p>我們討論出來的設計。<span class="tag ok">定案</span> 是已經討論確認的，<span class="tag blue">建議</span> 是我提出、你還沒有明確確認的，<span class="tag red">待量測</span> 要等合成數字。</p>
+</div>
+
+<section id="b1">
+  <h2><span class="no">B1</span>架構總覽<span class="en">Overview</span></h2>
+  <div class="tbl"><table>
+    <thead><tr><th>項目</th><th>做法</th><th>狀態</th><th>詳見</th></tr></thead>
+    <tbody>
+      <tr><td>平行度</td><td>一拍處理一個 2×2 tile，兩個 head 各一套 datapath 並行</td><td><span class="tag blue">建議</span></td><td><a href="#b2">B2</a></td></tr>
+      <tr><td>輸出方式</td><td>邊算邊送，第一個 Final 好了就開始輸出</td><td><span class="tag ok">定案</span></td><td><a href="#b2">B2</a></td></tr>
+      <tr><td>K、V</td><td>2 head × 4 lane × 8 的 ring，每個 tile 轉一格</td><td><span class="tag ok">定案</span></td><td><a href="#b3">B3</a></td></tr>
+      <tr><td>Head Switcher</td><td><code>c[2:0]</code> 解碼成 8 個 lane enable，Q/K/V 共用</td><td><span class="tag ok">定案</span></td><td><a href="#b3">B3</a></td></tr>
+      <tr><td>Q</td><td>current 暫存器 + 7 格 lane，每個 Q_block 走一格，不寫回</td><td><span class="tag blue">建議</span></td><td><a href="#b3">B3</a></td></tr>
+      <tr><td>K/V 讀取</td><td>head/tail 2 選 1 mux：輸入期間讀尾端，之後讀頭端</td><td><span class="tag ok">定案</span></td><td><a href="#b3">B3</a></td></tr>
+      <tr><td>W</td><td>4 lane × 4 的 ring，輸出時每拍轉一格</td><td><span class="tag ok">定案</span></td><td><a href="#b3">B3</a></td></tr>
+      <tr><td>Exponent 壓縮</td><td>Q/V/W 省 1 bit；K 省 4 bit (等確認範圍)</td><td><span class="tag blue">建議</span></td><td><a href="#b3">B3</a></td></tr>
+      <tr><td>Pipeline</td><td>S1 score → S2 max + sub → S3 exp → S4 更新 D、M</td><td><span class="tag red">待量測</span></td><td><a href="#b5">B5</a></td></tr>
+      <tr><td>D/M 快照</td><td>shift 結構，除法器只讀固定一格</td><td><span class="tag ok">定案</span></td><td><a href="#b6">B6</a></td></tr>
+      <tr><td>除法器</td><td>每個 head 一顆，分時做 4 次除法</td><td><span class="tag blue">建議</span></td><td><a href="#b6">B6</a></td></tr>
+      <tr><td>乘 W</td><td>1 顆 <code>DW_fp_dp4</code>，H 固定一列 4 拍、W 每拍轉一列</td><td><span class="tag ok">定案</span></td><td><a href="#b6">B6</a></td></tr>
+      <tr><td>Tile 順序</td><td>嚴格照 spec：Q_block 外層、K_block 內層、j = 0 → 7</td><td><span class="tag ok">定案</span></td><td><a href="#b9">B9</a></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="fig">
+    <h3>完整 Datapath</h3>
+    <div class="scroll">
+    <svg viewBox="0 0 1100 580" width="1100" role="img" aria-label="F_ATTN 完整 datapath">
+      <g font-size="12">
+        <text x="10" y="16" font-weight="700" font-size="13">儲存</text>
+        <rect x="10" y="40" width="100" height="194" rx="4" fill="var(--paper)" stroke="var(--m-edge)"/>
+        <text x="60" y="64" text-anchor="middle" font-weight="700">輸入</text>
+        <text x="60" y="94" text-anchor="middle" class="mono">Q</text>
+        <text x="60" y="122" text-anchor="middle" class="mono">K</text>
+        <text x="60" y="150" text-anchor="middle" class="mono">V</text>
+        <text x="60" y="178" text-anchor="middle" class="mono">out_weight</text>
+        <text x="60" y="214" text-anchor="middle" class="muted" font-size="11">每拍各 32 bit</text>
+        <path d="M110 137 H138" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <rect x="140" y="40" width="96" height="194" rx="4" fill="var(--note-bg)" stroke="var(--accent)"/>
+        <text x="188" y="100" text-anchor="middle" font-weight="700">Head</text>
+        <text x="188" y="118" text-anchor="middle" font-weight="700">Switcher</text>
+        <text x="188" y="146" text-anchor="middle" class="mono" font-size="11">c[2:0] → 8 lane</text>
+        <text x="188" y="164" text-anchor="middle" class="mono" font-size="11">c[1:0] → W</text>
+        <path d="M236 43 H268" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <path d="M236 99 H268" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <path d="M236 155 H268" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <path d="M236 211 H268" stroke="var(--fg)" marker-end="url(#ad)"/>
+
+        <rect x="270" y="20" width="270" height="46" rx="4" fill="var(--m-q)" stroke="var(--m-edge)"/>
+        <text x="282" y="39" font-weight="700">Q：current reg + 7 格 lane</text>
+        <text x="282" y="57" font-size="11">2 head × 4 lane，每 8 個 tile 走一格</text>
+        <rect x="270" y="76" width="270" height="46" rx="4" fill="var(--m-k)" stroke="var(--m-edge)"/>
+        <text x="282" y="95" font-weight="700">K ring：4 lane × 8 (× 2 head)</text>
+        <text x="282" y="113" font-size="11">每個 tile 轉一格</text>
+        <rect x="270" y="132" width="270" height="46" rx="4" fill="var(--m-v)" stroke="var(--m-edge)"/>
+        <text x="282" y="151" font-weight="700">V ring：4 lane × 8 (× 2 head)</text>
+        <text x="282" y="169" font-size="11">跟 K 同步轉</text>
+        <rect x="270" y="188" width="270" height="46" rx="4" fill="var(--m-w)" stroke="var(--m-edge)"/>
+        <text x="282" y="207" font-weight="700">W ring：4 lane × 4 (16 word)</text>
+        <text x="282" y="225" font-size="11">c &lt; 16 時寫入，輸出時每拍轉一格</text>
+
+        <path d="M570 80 L600 90 L600 112 L570 122 Z" fill="var(--paper)" stroke="var(--fg)"/>
+        <text x="585" y="105" text-anchor="middle" font-size="10">尾/頭</text>
+        <path d="M570 136 L600 146 L600 168 L570 178 Z" fill="var(--paper)" stroke="var(--fg)"/>
+        <text x="585" y="161" text-anchor="middle" font-size="10">尾/頭</text>
+        <path d="M540 99 H568" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <path d="M540 155 H568" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <text x="700" y="128" font-size="11" class="muted">head/tail mux：輸入期間讀尾端 (Q_block 0)，之後讀頭端</text>
+
+        <path d="M540 43 H560 V260 H40 V298" stroke="var(--fg)" fill="none" marker-end="url(#ad)"/>
+        <path d="M600 101 H660 V270 H70 V298" stroke="var(--fg)" fill="none" marker-end="url(#ad)"/>
+        <path d="M600 157 H680 V280 H100 V298" stroke="var(--fg)" fill="none" marker-end="url(#ad)"/>
+        <text x="575" y="255" font-size="11" class="mono">Q</text>
+        <text x="665" y="265" font-size="11" class="mono">K</text>
+        <text x="685" y="276" font-size="11" class="mono">V</text>
+        <path d="M540 211 H960 V298" stroke="var(--fg)" fill="none" marker-end="url(#ad)"/>
+        <text x="966" y="240" font-size="11" class="mono">W[k]，每拍一列</text>
+
+        <text x="10" y="292" font-weight="700" font-size="13" fill="var(--accent)">計算 × 2 (每個 head 一套)</text>
+        <rect x="10" y="300" width="120" height="140" rx="4" fill="var(--m-s)" stroke="var(--m-edge)"/>
+        <text x="70" y="324" text-anchor="middle" font-weight="700">S1 Score</text>
+        <text x="70" y="350" text-anchor="middle" class="mono">dp2 × 4</text>
+        <text x="70" y="370" text-anchor="middle" class="mono">÷√2 × 4</text>
+        <text x="70" y="396" text-anchor="middle" font-size="11">Sa0 Sa1</text>
+        <text x="70" y="412" text-anchor="middle" font-size="11">Sb0 Sb1</text>
+
+        <rect x="136" y="300" width="4" height="140" fill="var(--accent)"/>
+        <rect x="146" y="300" width="120" height="140" rx="4" fill="var(--m-s)" stroke="var(--m-edge)"/>
+        <text x="206" y="324" text-anchor="middle" font-weight="700">S2 Max + Sub</text>
+        <text x="206" y="350" text-anchor="middle" class="mono">cmp × 4</text>
+        <text x="206" y="370" text-anchor="middle" class="mono">sub × 6</text>
+        <text x="206" y="396" text-anchor="middle" font-size="11">Max_a' Max_b'</text>
+        <text x="206" y="412" text-anchor="middle" font-size="11">S − Max'、Max − Max'</text>
+        <path d="M236 300 V290 H176 V298" stroke="var(--warn)" fill="none" marker-end="url(#ad)"/>
+        <text x="206" y="286" text-anchor="middle" font-size="10" fill="var(--warn)">Max 回授</text>
+
+        <rect x="272" y="300" width="4" height="140" fill="var(--accent)"/>
+        <rect x="282" y="300" width="120" height="140" rx="4" fill="var(--m-p)" stroke="var(--m-edge)" opacity=".85"/>
+        <text x="342" y="324" text-anchor="middle" font-weight="700">S3 Exp</text>
+        <text x="342" y="350" text-anchor="middle" class="mono">exp × 6</text>
+        <text x="342" y="396" text-anchor="middle" font-size="11">Ca Xa Ya</text>
+        <text x="342" y="412" text-anchor="middle" font-size="11">Cb Xb Yb</text>
+
+        <rect x="408" y="300" width="4" height="140" fill="var(--accent)"/>
+        <rect x="418" y="300" width="150" height="140" rx="4" fill="var(--m-o)" stroke="var(--m-edge)"/>
+        <text x="493" y="324" text-anchor="middle" font-weight="700">S4 更新 D、M</text>
+        <text x="493" y="350" text-anchor="middle" class="mono">mult × 6</text>
+        <text x="493" y="368" text-anchor="middle" class="mono">dp2 × 4</text>
+        <text x="493" y="386" text-anchor="middle" class="mono">add × 8</text>
+        <text x="493" y="412" text-anchor="middle" font-size="11">Da Db Ma0 Ma1 Mb0 Mb1</text>
+        <path d="M538 300 V290 H448 V298" stroke="var(--warn)" fill="none" marker-end="url(#ad)"/>
+        <text x="493" y="286" text-anchor="middle" font-size="10" fill="var(--warn)">D、M 回授</text>
+
+        <path d="M130 370 H144" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <path d="M266 370 H280" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <path d="M402 370 H416" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <path d="M100 440 V458 H493 V442" stroke="var(--muted)" stroke-dasharray="4 3" fill="none" marker-end="url(#ad)"/>
+        <text x="296" y="474" text-anchor="middle" font-size="11" class="muted">V 跟著 pipeline 往後傳 3 級 (S4 才用)</text>
+
+        <text x="600" y="292" font-weight="700" font-size="13" fill="var(--accent)">輸出</text>
+        <path d="M568 370 H588" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <rect x="590" y="320" width="96" height="100" rx="4" fill="var(--paper)" stroke="var(--m-edge)"/>
+        <text x="638" y="344" text-anchor="middle" font-weight="700">D/M 快照</text>
+        <text x="638" y="364" text-anchor="middle" font-size="11">shift 結構</text>
+        <text x="638" y="382" text-anchor="middle" font-size="11">6 word / head</text>
+        <text x="638" y="400" text-anchor="middle" font-size="11">每 8 拍載入</text>
+        <path d="M686 370 H702" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <rect x="704" y="320" width="96" height="100" rx="4" fill="var(--m-o)" stroke="var(--m-edge)"/>
+        <text x="752" y="344" text-anchor="middle" font-weight="700">Divider</text>
+        <text x="752" y="364" text-anchor="middle" class="mono" font-size="11">÷ × 1 / head</text>
+        <text x="752" y="382" text-anchor="middle" font-size="11">組合電路</text>
+        <text x="752" y="400" text-anchor="middle" font-size="11">分時做 4 次</text>
+        <path d="M800 370 H816" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <rect x="818" y="320" width="90" height="100" rx="4" fill="var(--m-h)" stroke="var(--m-edge)"/>
+        <text x="863" y="344" text-anchor="middle" font-weight="700" fill="#fff">H 暫存器</text>
+        <text x="863" y="364" text-anchor="middle" font-size="11" fill="#fff">4 word / head</text>
+        <text x="863" y="382" text-anchor="middle" font-size="11" fill="#fff">token a / b</text>
+        <text x="863" y="400" text-anchor="middle" font-size="11" fill="#fff">2 選 1</text>
+        <path d="M908 370 H918" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <rect x="920" y="300" width="80" height="140" rx="4" fill="var(--m-w)" stroke="var(--m-edge)"/>
+        <text x="960" y="350" text-anchor="middle" font-weight="700">dp4</text>
+        <text x="960" y="372" text-anchor="middle" font-size="11">× 1 (共用)</text>
+        <text x="960" y="392" text-anchor="middle" font-size="11">H · W[k]</text>
+        <path d="M1000 370 H1018" stroke="var(--fg)" marker-end="url(#ad)"/>
+        <rect x="1020" y="330" width="72" height="80" rx="4" fill="var(--paper)" stroke="var(--accent)" stroke-width="2"/>
+        <text x="1056" y="358" text-anchor="middle" class="mono" font-weight="700">out</text>
+        <text x="1056" y="376" text-anchor="middle" font-size="10">reg</text>
+        <text x="1056" y="394" text-anchor="middle" font-size="10">invalid → 0</text>
+        <text x="760" y="470" text-anchor="middle" font-size="11" class="muted">快照、除法器、H 暫存器每個 head 各一份；兩個 head 在 dp4 匯合</text>
+
+        <rect x="10" y="520" width="4" height="18" fill="var(--accent)"/>
+        <text x="22" y="534" font-size="11">pipeline register</text>
+        <path d="M150 529 H180" stroke="var(--warn)"/>
+        <text x="186" y="534" font-size="11">回授迴圈 (必須在同一級內完成)</text>
+        <path d="M400 529 H430" stroke="var(--muted)" stroke-dasharray="4 3"/>
+        <text x="436" y="534" font-size="11">往後傳遞的資料</text>
+        <text x="10" y="560" font-size="11" class="muted">S1 ~ S4 標的單元數是每個 head 的數量。</text>
+      </g>
+    </svg>
+    </div>
+  </div>
+</section>
+
+<section id="b2">
+  <h2><span class="no">B2</span>設計方向的推導<span class="en">Why this shape</span></h2>
+  <p>整個架構是從評分公式和 latency 的定義推出來的。這一節講清楚推導過程，後面每個細節都建立在這裡的結論上。</p>
+
+  <h3>1. 評分公式：Area² × Latency × T</h3>
+  <p>面積是平方，影響比 latency 和 T 大：面積減半，分數變 1/4；latency 減半，分數只變 1/2。所以一開始的直覺是「少放硬體、多花幾拍」。但下面第 2 點會推翻這個直覺。</p>
+
+  <h3>2. latency 只算到「第一個」out_valid</h3>
+  <p>spec 第 6 條：latency 從 in_valid 下降緣算到<b>第一個</b> out_valid 上升緣。輸出的 64 拍不算在 latency 裡。所以如果第一個 Final 一算好就開始輸出、其他的邊算邊送，<b>大部分計算可以藏進輸出的那 64 拍</b>。</p>
+  <div class="tbl"><table>
+    <thead><tr><th>做法</th><th>latency</th></tr></thead>
+    <tbody>
+      <tr><td>全部算完再輸出</td><td>整個計算時間 (一拍一 tile 也要 70 拍以上)</td></tr>
+      <tr><td><b>邊算邊送</b></td><td>只到第一個 Final 算好，<b>約 8 拍</b></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>3. 邊算邊送要求「產生速度 = 輸出速度」</h3>
+  <p>out_valid 必須連續 64 拍，每拍要有一個 Final 可以送。一個 Q_block (2 個 token) 會產生 2 × 4 = 8 個 Final，所以一個 Q_block 必須在 8 拍內做完，也就是<b>一拍一個 tile</b>。兩個 head 都要在同一個 Q_block 完成，Final 才能算 (Final 需要兩個 head 的值)，所以<b>兩個 head 並行</b>。</p>
+
+  <h3>4. 快但大，還是慢但小？</h3>
+  <p>設 F = 儲存等固定面積、U = 一拍一 tile 需要的運算面積、r = 產生速度 (每拍幾個 Final)。速度 r &lt; 1 時輸出要晚開始，latency ≈ 8 + 64 × (1/r − 1)：</p>
+  <div class="tbl"><table>
+    <thead><tr><th>r</th><th>面積</th><th>latency</th><th>分數比較 (相對 r = 1)</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1</td><td class="mono">F + U</td><td class="mono">≈ 8</td><td>基準</td></tr>
+      <tr><td class="mono">0.5</td><td class="mono">F + U/2</td><td class="mono">≈ 72</td><td>r = 1 的分數 / r = 0.5 的分數 ≤ (1/9) × 4 ≈ 0.44，<b>r = 1 較好</b></td></tr>
+      <tr><td class="mono">0.25</td><td class="mono">F + U/4</td><td class="mono">≈ 200</td><td>≤ 8 × 16 / 200 = 0.64，<b>r = 1 較好</b></td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout why">
+    <div class="t">結論與前提</div>
+    <p>在這個模型下，不管 F、U 是多少，一拍一 tile 都比較好，因為省下的面積最多一半，latency 卻多好幾倍。前提是兩種架構的 T 一樣，而且一拍一 tile 的面積要塞得進上限 4,000,000 (12 顆 exp、10 顆除法器…)，這要等 DW 單元的實際數字確認。</p>
+  </div>
+
+  <h3>5. DesignWare FP 單元是純組合電路</h3>
+  <p>查證 Synopsys 文件：<code>DW_fp_mult</code> 等標準 FP 單元只有 <code>a</code>、<code>b</code>、<code>rnd</code>、<code>z</code>、<code>status</code>，<b>沒有 clk</b>。只要 T 夠長，一拍就算完。所以：</p>
+  <ul class="ol">
+    <li>單元的 delay 直接決定 T。最慢的 exp、div 要盡量自己一級，或自己插 register 切開。</li>
+    <li>要多拍的變體要另外選：<code>DW_fp_div_seq</code> (循序除法器，<code>num_cyc</code> 拍算完，面積較小)、<code>DW_lp_piped_fp_*</code> (minPower 系列，要確認 license)。</li>
+  </ul>
+
+  <h3>6. 為什麼不用 systolic array</h3>
+  <ul class="ol">
+    <li><b>Area² 很貴</b>：systolic array 是多放 PE 換速度，大部分 PE 會在等資料。</li>
+    <li><b>矩陣太小</b>：head_dim = 2，每個 score 只是 2 項內積，一顆 <code>DW_fp_dp2</code> 就做完，沒有長的累加鏈可以利用。</li>
+    <li><b>瓶頸不在矩陣乘法</b>：exp 和 online softmax 的序列相依 (先 max 才能 exp) 是 systolic array 處理不了的。</li>
+  </ul>
+</section>
+
+<section id="b3">
+  <h2><span class="no">B3</span>儲存架構<span class="en">Lane buffers</span></h2>
+
+  <h3>1. 最少要存多少</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>資料</th><th>word</th><th>為什麼一定要存</th></tr></thead>
+    <tbody>
+      <tr><td>K、V</td><td class="mono">64 + 64</td><td>最後一個 token 的 Q 在第 63 拍才進來，它要跟全部 16 個 K、V 算</td></tr>
+      <tr><td>Q</td><td class="mono">64</td><td>每一列都要等 K 全部進來才能算完。改存每列的 online 狀態 (Max、D、M0、M1，兩個 head 共 8 word / token) 比存 Q (4 word / token) 還大</td></tr>
+      <tr><td>W</td><td class="mono">16</td><td>只在前 16 拍有效，輸出時才用</td></tr>
+      <tr><td><b>合計</b></td><td class="mono"><b>208</b></td><td>≈ 6656 bit，是理論下限</td></tr>
+    </tbody>
+  </table></div>
+  <p>數量省不了，能省的是「怎麼存」。</p>
+
+  <h3>2. 用 shift 取代隨機讀取</h3>
+  <p>如果 buffer 可以隨機讀，每個讀取埠都要一顆 64 選 1 × 32 bit 的 mux，面積可能跟 FF 本身差不多。這題的讀取順序完全固定：每個 Q_block 都依序讀 K_block 0 → 7，讀完回到 0。所以用 <b>shift / ring</b>，資料自己移到固定的讀取位置，<b>讀取端不需要 mux</b>；寫入也是照順序 shift in，<b>不需要寫入 decoder</b>。</p>
+
+  <h3>3. Lane：一個 column = 一個 head 的 2×2 block</h3>
+  <p>每個 head 的資料拆成 <b>4 條 lane × 8 格</b>，每格 1 個 FP32。4 條 lane 對應 block 內的 4 個位置，同一個 column 的 4 格就是一個 2×2 block (2 token × 該 head 的 2 維)。</p>
+  <div class="two">
+    <pre class="code"><span class="c">// Head 1 的 block b</span>
+             dim0      dim1
+token 2b   [ lane 0 ][ lane 1 ]
+token 2b+1 [ lane 2 ][ lane 3 ]</pre>
+    <pre class="code"><span class="c">// Head 2 的 block b</span>
+             dim2      dim3
+token 2b   [ lane 0 ][ lane 1 ]
+token 2b+1 [ lane 2 ][ lane 3 ]</pre>
+  </div>
+  <div class="callout why">
+    <div class="t">為什麼拆成 4 條 lane，不用一條 32 格的 ring</div>
+    <p>一條 32 格的 ring：輸入時一次移 1 格，轉一個 block 卻要一次移 4 格，每個 FF 前面要 3 選 1 mux (保持 / 前 1 格 / 前 4 格)，K、V 共 4096 個 FF 都要多這顆 mux。拆成 4 條 lane 後，<b>轉一個 block = 4 條 lane 同時移 1 格</b>，<b>輸入一個 word = 對應的那條 lane 移 1 格</b>，兩種操作都是「從前 1 格來」，每個 FF 只要 2 選 1。這等於一條 8 格、每格 128 bit 的 ring，只是把寬度拆成 4 條 32 bit，讓輸入時可以一條一條填。</p>
+    <p>例外：如果 datapath 一拍只吃 1 個 word、4 拍吃完一個 tile，一條 32 格每拍移 1 格的 ring 就夠了。我們是一拍吃一整個 tile，所以用 lane。</p>
+  </div>
+
+  <h3>4. Head Switcher：1 對 8 的寫入 enable</h3>
+  <p>第 c 拍 (c = 0 ~ 63) 的 word 寫到哪條 lane 只看 <code>c[2:0]</code>。Q、K、V 同一拍、同一個位置進來，<b>三者共用同一組 enable</b>。它不是 data mux，資料線直接接到所有 lane，只有 enable 不同。</p>
+  <div class="tbl"><table>
+    <thead><tr><th class="mono">c[2:0]</th><th>進來的資料</th><th>寫到</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">0</td><td>偶數 token dim 0</td><td>Head 1 lane 0</td></tr>
+      <tr><td class="mono">1</td><td>偶數 token dim 1</td><td>Head 1 lane 1</td></tr>
+      <tr><td class="mono">2</td><td>偶數 token dim 2</td><td>Head 2 lane 0</td></tr>
+      <tr><td class="mono">3</td><td>偶數 token dim 3</td><td>Head 2 lane 1</td></tr>
+      <tr><td class="mono">4</td><td>奇數 token dim 0</td><td>Head 1 lane 2</td></tr>
+      <tr><td class="mono">5</td><td>奇數 token dim 1</td><td>Head 1 lane 3</td></tr>
+      <tr><td class="mono">6</td><td>奇數 token dim 2</td><td>Head 2 lane 2</td></tr>
+      <tr><td class="mono">7</td><td>奇數 token dim 3</td><td>Head 2 lane 3</td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap"><code>c[1]</code> 決定 head、<code>c[2]</code> 決定 block 內的偶 / 奇 token、<code>c[0]</code> 決定 head 內的哪一維。<code>c[5:3]</code> (第幾個 block) 不用解碼：每條 lane 每 8 拍收到一個 word，64 拍後剛好各收 8 個，<b>自動對齊</b>，block 0 在頭端。</p>
+
+  <div class="fig">
+    <h4>互動：K buffer 怎麼填、怎麼轉</h4>
+    <div class="ctrl">
+      <label for="lane-c">輸入 cycle <input type="range" id="lane-c" min="0" max="64" value="64"></label><output id="lane-c-out"></output>
+      <label for="lane-j">計算中的 tile j <input type="range" id="lane-j" min="0" max="7" value="0"></label><output id="lane-j-out"></output>
+    </div>
+    <div class="scroll"><svg id="lane-svg" viewBox="0 0 640 330" width="640" role="img" aria-label="K buffer 的 lane 結構"></svg></div>
+    <p class="cap">格子標 <code>t</code>token<code>d</code>維度 (從 0 數)。左邊框起來的是頭端 (讀取端)，右邊是尾端 (新資料進來)。拉「輸入 cycle」看每條 lane 每 8 拍收一個 word；輸入完成後拉「tile j」看整個 column 往左轉、最左邊繞回尾端。V 和 K 完全同步。</p>
+  </div>
+
+  <h3>5. K、V：ring，每個 tile 轉一格</h3>
+  <ul class="ol">
+    <li>每做完一個 tile，同一個 head 的 4 條 lane 一起移一格，最左的 column 繞回尾端。下一個 K_block 就到頭端了。</li>
+    <li><b>轉滿 8 次剛好回到原位</b>，不需要回填或重設，下一個 Q_block 直接從 block 0 開始。</li>
+    <li>V 跟 K 同步轉，因為 tile j 的 score 要乘的就是 V_block j。</li>
+  </ul>
+
+  <h3>6. K/V 的 head/tail mux：為什麼輸入期間讀尾端</h3>
+  <p>lane 是從尾端填的：新 word 從 entry 7 進來，往 entry 0 推。block 0 要等整條 lane 收滿 8 個 (輸入結束) 才會到頭端。在那之前，<b>剛到齊的 block j 一定在尾端</b>。</p>
+  <pre class="code">            entry: 0    1    2    3    4    5    6    7
+                   ↑頭端 (讀取端)                         ↑尾端 (新資料進來)
+第 8 拍後          [ -  ][ -  ][ -  ][ -  ][ -  ][ -  ][ -  ][ B0 ]
+第 16 拍後         [ -  ][ -  ][ -  ][ -  ][ -  ][ -  ][ B0 ][ B1 ]
+第 24 拍後         [ -  ][ -  ][ -  ][ -  ][ -  ][ B0 ][ B1 ][ B2 ]
+第 63 拍後         [ B0 ][ B1 ][ B2 ][ B3 ][ B4 ][ B5 ][ B6 ][ B7 ]</pre>
+  <div class="tbl"><table>
+    <thead><tr><th>時間</th><th>要算的 tile</th><th>要用的 block 在哪</th><th>讀</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">8j + 8</td><td>Q_block 0 tile j</td><td>block j 剛到齊，在尾端</td><td><b>尾端</b></td></tr>
+      <tr><td class="mono">64</td><td>Q_block 0 tile 7</td><td>block 7 剛到齊，在尾端</td><td><b>尾端</b></td></tr>
+      <tr><td class="mono">65 起</td><td>Q_block 1 以後</td><td>lane 填滿，ring 把 block j 轉到頭端</td><td><b>頭端</b></td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout why">
+    <div class="t">為什麼值得</div>
+    <p>在 block 剛到齊時就從尾端拿去算，Q_block 0 跟著輸入同步完成，latency 從約 15 拍降到約 8 拍。分數直接乘上 latency，等於差將近 2 倍。代價只是 K、V 讀取端各一個 column 的 2 選 1 mux。</p>
+  </div>
+
+  <h3>7. Q：current 暫存器 + 7 格 lane，不寫回</h3>
+  <ul class="ol">
+    <li>Q_block 0 要在輸入期間就用，但它在 lane 裡會一路移動，沒有固定位置可讀。所以第 0 ~ 7 拍進來的 Q_block 0 直接存進 <b>current 暫存器</b>，Q_block 1 ~ 7 存進 <b>7 格深的 lane</b>。總容量一樣 8 個 block。</li>
+    <li>每個 Q_block (8 個 tile) 做完：<code>current ← lane 頭端</code>，lane 移一格。K/V 轉滿一圈剛好對應 Q 走一格。</li>
+    <li>Q 寫入用同一組 Head Switcher enable，只是 <code>c[5:3] = 0</code> 時寫 current，其他寫 lane。</li>
+    <li><b>不寫回 Head_out</b>：因為邊算邊送，Head_out 幾拍內就被 dp4 用掉，放在小的 H 暫存器就好 (見 <a href="#b6">B6</a>)。早期版本是把 Head_out 寫回 Q 的尾端，邊算邊送之後就不需要了。</li>
+  </ul>
+
+  <h3>8. W：4 lane × 4 的 ring</h3>
+  <ul class="ol">
+    <li>W 作用在兩個 head 拼起來的 4 維上，<b>不分 head</b>。</li>
+    <li>4 條 lane (k0 ~ k3) × 4 格 (row 0 ~ 3)。第 c 拍進來的是 <code>W[c/4][c%4]</code>，用 <code>c[1:0]</code> 選 lane，<b>只在 <code>c &lt; 16</code> 時寫入</b> (之後 out_weight 是 X)。16 拍後自動對齊。</li>
+    <li>輸出順序是 Final[t][0..3]，每拍要換下一列 W，0 → 1 → 2 → 3 → 0 循環，剛好是 ring。讀取端 column 就是 W 的一整列，直接接 dp4。</li>
+  </ul>
+
+  <h3>9. Exponent 壓縮</h3>
+  <p>exponent 數量取決於範圍跨了幾個 2 倍 (dynamic range)，不是上限多大：</p>
+  <div class="tbl"><table>
+    <thead><tr><th>訊號</th><th>範圍</th><th>可能的 exponent</th><th>壓縮</th><th>還原</th><th>省</th></tr></thead>
+    <tbody>
+      <tr><td>Q、V、W</td><td class="mono">±0 ~ 0.5</td><td class="mono">0 ~ 126</td><td>拿掉 bit 30 (|x| &lt; 1 時一定是 0)</td><td>bit 30 補 0，只是接線</td><td class="mono">144 bit</td></tr>
+      <tr><td>K</td><td class="mono">±0.5 ~ 255</td><td class="mono">126 ~ 134 (9 種)</td><td>只存 exponent 低 4 bit</td><td class="mono">{~b3, b3, b3, b3, b[3:0]}</td><td class="mono">256 bit</td></tr>
+    </tbody>
+  </table></div>
+  <ul class="ol">
+    <li><b>Q/V/W 只能省 1 bit</b>：下限是 0，0.5、0.25、0.125 … 可以一直減半 126 次，比例是無限大倍。PATTERN 均勻亂數時小 exponent 很少出現，但「很少」不等於「不會」，不能靠機率壓 bit。</li>
+    <li><b>K 能省 4 bit</b>：0.5 到 255 只跨 9 個 2 倍。126 ~ 134 的低 4 bit (1110、1111、0000 ~ 0110) 都不一樣，高 4 bit 由 b3 決定 (b3 = 1 → 0111，b3 = 0 → 1000)，<b>還原只要一顆 inverter 加接線</b>，不用加法器。</li>
+    <li>合計約 400 bit，約 6%。</li>
+  </ul>
+  <div class="callout warn">
+    <div class="t">K 的壓縮要等助教確認範圍</div>
+    <p>只要 K 出現 0、小於 0.5 或大於 255，結果就錯。建議先做 Q/V/W 的 1 bit，K 等確認後再加。PATTERN 要測 0.5、255、0、負號等邊界值。另外 Final 最大可到 4 × 0.5 × 0.5 = 1.0，exponent 會變成 127，<b>不能用這種格式存</b>；目前 Final 不存，所以沒問題。</p>
+  </div>
+
+  <h3>10. 資料暫存器的 reset</h3>
+  <p class="cap">資料暫存器 (buffer、pipeline register、快照、H) 不接 reset 可以省面積，只有 out_valid、out、FSM、counter 需要 async reset。這點<b>暫時不考慮</b>，之後優化面積時再處理。</p>
+</section>
+
+<section id="b4">
+  <h2><span class="no">B4</span>一個 Q_block 的運算<span class="en">One Q_block, step by step</span></h2>
+  <p>兩個 head 的做法完全相同，以下講一個 head。</p>
+
+  <h3>1. 命名</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>符號</th><th>意思</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Qa0 Qa1 / Qb0 Qb1</td><td>Q_block i 的兩列：a = token 2i、b = token 2i+1；0、1 = head 內的維度</td></tr>
+      <tr><td class="mono">Ka0 Ka1 / Kb0 Kb1</td><td>K_block j 的兩個 token：a = token 2j、b = token 2j+1 (圖上畫成轉置)</td></tr>
+      <tr><td class="mono">Va0 Va1 / Vb0 Vb1</td><td>V_block j，a/b 同 K</td></tr>
+      <tr><td class="mono">Sa0 Sa1 / Sb0 Sb1</td><td>score：Sa0 = 列 a 對 key a、Sa1 = 列 a 對 key b</td></tr>
+      <tr><td class="mono">Xa Ya / Xb Yb</td><td>這個 tile 的權重：X 對應 key a、Y 對應 key b</td></tr>
+      <tr><td class="mono">Ca Cb</td><td>修正係數 e^(Max_old − Max_new)</td></tr>
+      <tr><td class="mono">Max_a Max_b</td><td>每列目前看過的最大 score (兩個獨立暫存器)</td></tr>
+      <tr><td class="mono">Da Db</td><td>分母：目前的權重總和</td></tr>
+      <tr><td class="mono">Ma0 Ma1 / Mb0 Mb1</td><td>分子：目前的 Σ 權重 × V (2 維)</td></tr>
+      <tr><td class="mono">Ha0 Ha1 / Hb0 Hb1</td><td>Head_out = M / D</td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap">注意 a/b 在 Q、S、X、Y、C、D、M、H 指 query 的兩列 (token 2i、2i+1)；在 K、V 指 key 的兩個 token (token 2j、2j+1)。</p>
+
+  <h3>2. D 和 M 在算什麼</h3>
+  <p>列 a 最後要得到所有 16 個 V 的加權平均，score 越高權重越大：</p>
+  <pre class="code">          Σ e^(s_k − Max) · V_k[d]        ← 分子 M
+Ha[d] = ───────────────────────────
+          Σ e^(s_k − Max)                 ← 分母 D
+        (k = 0 ~ 15)</pre>
+  <p>D、M 是「到目前為止處理過的 token」的累加值。每個 tile 加 2 個 token，8 個 tile 加滿 16 個。權重是以 Max 為基準算的，Max 變大時，舊的累加值要乘 C 換到新基準：<code>e^(s − Max_old) × e^(Max_old − Max_new) = e^(s − Max_new)</code>。分母要等 16 個都加完才知道，所以<b>分子分母各自累加，最後才除一次</b>。</p>
+
+  <h3>3. 狀態暫存器</h3>
+  <p>每個 head 8 個：<code>Max_a Max_b Da Db Ma0 Ma1 Mb0 Mb1</code>。同一時間只有一個 Q_block 在處理，所以只要這 8 個，不需要 16 列全部開 (那要 128 個)。<b>不需要清零</b>：下一個 Q_block 的第一個 tile 是特例初始化，直接覆蓋。</p>
+
+  <h3>4. 一次 iteration (tile j)</h3>
+  <div class="istep"><div class="k">Step 1</div><div>
+    <b>算 4 個 score</b> <span class="badge">dp2 × 4, ÷√2 × 4</span>
+    <pre class="code">Sa0 = (Qa0·Ka0 + Qa1·Ka1) / √2      <span class="c">// 列 a 對 key a</span>
+Sa1 = (Qa0·Kb0 + Qa1·Kb1) / √2      <span class="c">// 列 a 對 key b</span>
+Sb0 = (Qb0·Ka0 + Qb1·Ka1) / √2
+Sb1 = (Qb0·Kb0 + Qb1·Kb1) / √2</pre>
+  </div></div>
+  <div class="istep"><div class="k">Step 2</div><div>
+    <b>更新最大值</b> <span class="badge">cmp × 4</span>
+    <pre class="code">Max_a' = max(Max_a, Sa0, Sa1)        Max_b' = max(Max_b, Sb0, Sb1)</pre>
+  </div></div>
+  <div class="istep"><div class="k">Step 3</div><div>
+    <b>算 6 個指數</b> <span class="badge">sub × 6, exp × 6</span>
+    <pre class="code">Ca = e^(Max_a − Max_a')      Cb = e^(Max_b − Max_b')      <span class="c">// 修正係數</span>
+Xa = e^(Sa0 − Max_a')        Xb = e^(Sb0 − Max_b')        <span class="c">// key a 的權重</span>
+Ya = e^(Sa1 − Max_a')        Yb = e^(Sb1 − Max_b')        <span class="c">// key b 的權重</span></pre>
+  </div></div>
+  <div class="istep"><div class="k">Step 4</div><div>
+    <b>更新分母、分子</b> <span class="badge">mult × 6, dp2 × 4, add × 8</span>
+    <pre class="code">Da  = Ca·Da  + (Xa + Ya)                 Db  = Cb·Db  + (Xb + Yb)
+Ma0 = Ca·Ma0 + (Xa·Va0 + Ya·Vb0)         Mb0 = Cb·Mb0 + (Xb·Va0 + Yb·Vb0)
+Ma1 = Ca·Ma1 + (Xa·Va1 + Ya·Vb1)         Mb1 = Cb·Mb1 + (Xb·Va1 + Yb·Vb1)
+Max_a = Max_a'                           Max_b = Max_b'</pre>
+    <p class="cap">規則：X 一定配 key a 的 V、Y 一定配 key b 的 V；同一條式子裡 V 的維度相同。</p>
+  </div></div>
+  <div class="istep"><div class="k">j = 0</div><div>
+    <b>第一個 tile 的特例</b>：還沒有舊值，不算 C
+    <pre class="code">Max_a' = max(Sa0, Sa1)      Da = Xa + Ya      Ma0 = Xa·Va0 + Ya·Vb0 …</pre>
+    <p class="cap">也可以把初始值設成 Max = −∞、D = M = 0，讓同一組式子通用，但要處理 e^(−∞) 的特殊值，當特例比較簡單。</p>
+  </div></div>
+  <div class="istep"><div class="k">Step 5</div><div>
+    <b>K、V 轉一格</b>，換下一個 tile。
+  </div></div>
+
+  <h3>5. 8 個 tile 做完</h3>
+  <pre class="code">Ha0 = Ma0 / Da      Ha1 = Ma1 / Da      Hb0 = Mb0 / Db      Hb1 = Mb1 / Db</pre>
+  <p>Max 不參與除法。這 4 個值和另一個 head 的 4 個值一起送去乘 W (見 <a href="#b6">B6</a>)。同時 K/V 剛好轉滿一圈，Q 走一格，下一個 Q_block 開始。</p>
+
+  <h3>6. 數字例子</h3>
+  <p>只看列 a，tile 0 的 score = (1, 3)、tile 1 = (5, 2)；為了好算，V 第 0 維假設為 10、20、30、40 (不在 spec 範圍內)：</p>
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>Max_a</th><th>Ca</th><th>Xa, Ya</th><th>Da</th><th>Ma0</th></tr></thead>
+    <tbody>
+      <tr><td>tile 0</td><td class="mono">3</td><td>—</td><td class="mono">0.135, 1</td><td class="mono">1.135</td><td class="mono">0.135×10 + 1×20 = 21.35</td></tr>
+      <tr><td>tile 1</td><td class="mono"><b>5</b></td><td class="mono">e^(3−5) = 0.135</td><td class="mono">1, 0.050</td><td class="mono">0.135×1.135 + 1.050 = 1.203</td><td class="mono">0.135×21.35 + 30 + 2.0 = 34.88</td></tr>
+    </tbody>
+  </table></div>
+  <p><code>Ha0 = 34.88 / 1.203 ≈ 28.99</code>。驗證：一次算完整列，權重 e^(s−5) = 0.018、0.135、1、0.050，分母 1.203、分子 34.88 ✓。結果接近 30，因為最高的 score 5 對應的 V 是 30：<b>query 最注意哪個 token，輸出就最像那個 token 的 V</b>。</p>
+</section>
+
+<section id="b5">
+  <h2><span class="no">B5</span>計算 pipeline<span class="en">Tile pipeline</span></h2>
+
+  <h3>1. 分級</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Stage</th><th>內容</th><th>回授</th><th>為什麼這樣切</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">S1</td><td>dp2 → ÷√2</td><td>無</td><td>只依賴 Q、K</td></tr>
+      <tr><td class="mono">S2</td><td>max → sub</td><td><b>Max</b></td><td>Max 回授只經過比較器，在這一級內完成；減法也放這裡，讓 exp 自己一級</td></tr>
+      <tr><td class="mono">S3</td><td>exp</td><td>無</td><td>exp 是最慢的單元之一，自己一級，避免拉長 T</td></tr>
+      <tr><td class="mono">S4</td><td>mult → dp2 → add</td><td><b>D、M</b></td><td>D、M 回授只經過一個 mult + 一個 add，在這一級內完成</td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap">你畫的架構圖把減法放在 exp 那一級。兩種都能動作，差別在 timing：exp 已經很慢，同一級再加減法會拉長 T。合成後看哪一級最慢再調整。</p>
+
+  <h3>2. 為什麼 tile 可以每拍進來</h3>
+  <p>online softmax 看起來每個 tile 都依賴前一個，但實際的相依只有兩個回授，而且<b>都在同一級內完成</b>：</p>
+  <div class="tbl"><table>
+    <thead><tr><th>cycle</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1</td><td>tile 0</td><td></td><td></td><td></td></tr>
+      <tr><td class="mono">2</td><td>tile 1</td><td>tile 0</td><td></td><td></td></tr>
+      <tr><td class="mono">3</td><td>tile 2</td><td>tile 1 ← 用 tile 0 在 cycle 2 更新的 Max ✓</td><td>tile 0</td><td></td></tr>
+      <tr><td class="mono">4</td><td>tile 3</td><td>tile 2</td><td>tile 1</td><td>tile 0</td></tr>
+      <tr><td class="mono">5</td><td>tile 4</td><td>tile 3</td><td>tile 2</td><td>tile 1 ← 用 tile 0 在 cycle 4 更新的 D、M ✓</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>3. 要跟著 tile 往後傳的資料</h3>
+  <ul class="ol">
+    <li><b>Max_old、Max_new</b>：S3 算 Ca 時，S2 的 Max 暫存器已經被下一個 tile 改掉了，所以 S2 要把減完的結果 (S − Max'、Max − Max') 存進 pipeline register 往後送。</li>
+    <li><b>V</b>：V 在 S1 跟 K 一起讀出，S4 才用到，要往後傳 3 級 (每個 head 12 word)。也可以讓 V ring 比 K 晚 3 拍轉來省掉，但 Q_block 0 在輸入期間各 lane 的讀取位置會不一樣，很亂，<b>目前不採用</b>。</li>
+  </ul>
+
+  <h3>4. 每個 head 的單元數</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>級</th><th>單元</th><th>每個 head</th><th>合計</th><th>做什麼</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="2">S1</td><td class="mono">DW_fp_dp2</td><td class="mono">4</td><td class="mono">8</td><td>4 個 score 內積</td></tr>
+      <tr><td class="mono">DW_fp_div</td><td class="mono">4</td><td class="mono">8</td><td>÷ sqare_root_2</td></tr>
+      <tr><td rowspan="2">S2</td><td class="mono">DW_fp_cmp</td><td class="mono">4</td><td class="mono">8</td><td>每列 max of 3 = 2 顆</td></tr>
+      <tr><td class="mono">DW_fp_sub</td><td class="mono">6</td><td class="mono">12</td><td>S0 − Max'、S1 − Max'、Max − Max'</td></tr>
+      <tr><td>S3</td><td class="mono">DW_fp_exp</td><td class="mono">6</td><td class="mono"><b>12</b></td><td>Ca Xa Ya Cb Xb Yb</td></tr>
+      <tr><td rowspan="3">S4</td><td class="mono">DW_fp_mult</td><td class="mono">6</td><td class="mono">12</td><td>Ca·Da、Ca·Ma0、Ca·Ma1 (b 列同)</td></tr>
+      <tr><td class="mono">DW_fp_dp2</td><td class="mono">4</td><td class="mono">8</td><td>Xa·Va0 + Ya·Vb0 …</td></tr>
+      <tr><td class="mono">DW_fp_add</td><td class="mono">8</td><td class="mono">16</td><td>Xa + Ya、C·D + (…)、C·M + (…)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>5. 如果某一級在一拍內做不完</h3>
+  <p>如果 S4 的 mult + add 太慢、必須拆成兩級來降低 T，回授就跨 2 拍：tile 1 要用 tile 0 的 M 時，tile 0 還沒算完。這時同一個 Q_block 的 tile 不能連續送，要<b>交錯獨立的資料</b>來填空檔，例如列 a、列 b 交錯，或兩個 head 交錯。回授跨幾拍，就要交錯幾組。這會改變整個時間表，所以要等量出 delay 再決定。</p>
+</section>
+
+<section id="b6">
+  <h2><span class="no">B6</span>輸出路徑<span class="en">Snapshot → divider → H → dp4 → out</span></h2>
+  <p>輸出路徑的工作是把「每 8 拍一次、一次 6 個值」的 D、M，轉成「每拍一個 Final」。所以快照和 H 暫存器雖然也是 stage 之間的 register，但跟 S1 ~ S4 之間的不一樣：</p>
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>S1 ~ S4 之間</th><th>D/M 快照</th><th>H 暫存器</th></tr></thead>
+    <tbody>
+      <tr><td>寫入</td><td>每拍</td><td>每 8 拍一次</td><td>每拍寫 1 個</td></tr>
+      <tr><td>保持</td><td>1 拍</td><td>4 拍</td><td>最多 8 拍</td></tr>
+      <tr><td>enable</td><td>不需要 (可用 valid bit)</td><td>需要</td><td>需要</td></tr>
+      <tr><td>讀取</td><td>整組接下一級</td><td>每拍讀不同的值</td><td>前 4 拍 token a、後 4 拍 token b</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>1. D/M 快照：為什麼需要</h3>
+  <p>Q_block i 的最後一個 tile 在 S4 更新完後，D、M 是最終值；但下一拍，Q_block i+1 的 tile 0 就會在 S4 覆蓋它們。<b>最終值只存在 1 拍</b>，所以要在那一拍把 6 個值 (M × 4、D × 2) 複製出來。</p>
+
+  <h3>2. 快照用 shift 結構</h3>
+  <pre class="code">M shift：[ Ma0 | Ma1 | Mb0 | Mb1 ]   每拍往左 shift 一格，除法器讀最左格
+D shift：[ Da  | Db  ]                每 2 拍 shift 一次，除法器讀左格</pre>
+  <div class="callout why">
+    <div class="t">為什麼用 shift：省的是 timing，不是面積</div>
+    <p>快照要一次載入 6 個值，所以 shift 的每一格也要選「載入 / shift」，跟讀取 mux 的面積差不多 (都約 4 顆 32-bit 2 選 1)。真正的好處是：除法器是很長的組合電路，很可能決定 T；用讀取 mux 的話 mux delay 加在除法路徑上，用 shift 的話 mux 在快照暫存器的輸入端，<b>除法器輸入直接接暫存器，關鍵路徑上沒有 mux</b>。這也跟整個設計「只讀固定位置」的風格一致。</p>
+  </div>
+
+  <h3>3. 除法器：每個 head 一顆，分時做 4 次</h3>
+  <p><code>DW_fp_div</code> 是組合電路，<b>每筆一拍就算完</b>。一顆除法器輪流做 4 次除法 (time-multiplexing，不是 pipeline)，每 8 拍有 4 拍閒置。</p>
+
+  <h3>4. H 暫存器與 dp4：為什麼一次讀一個 token 的兩個 head</h3>
+  <p><code>Final[t][k] = H[t] · W[k]</code>：H 的一列 (一個 token，兩個 head 共 4 個值) 和 W 的一列做內積。spec 要求 raster 順序 (先固定 token、再跑 4 維)，所以 <b>H 固定一列連續用 4 拍，W 每拍轉一列</b>：</p>
+  <div class="tbl"><table>
+    <thead><tr><th>拍</th><th>dp4 讀的 H (兩個 head 都讀)</th><th>W</th><th>輸出</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1 ~ 4</td><td class="mono">H1a0 H1a1 H2a0 H2a1</td><td class="mono">W[0] ~ W[3]</td><td class="mono">Fa0 ~ Fa3</td></tr>
+      <tr><td class="mono">5 ~ 8</td><td class="mono">H1b0 H1b1 H2b0 H2b1</td><td class="mono">W[0] ~ W[3]</td><td class="mono">Fb0 ~ Fb3</td></tr>
+    </tbody>
+  </table></div>
+  <pre class="code">Fa[k] = H1a0·W[k][0] + H1a1·W[k][1] + H2a0·W[k][2] + H2a1·W[k][3]
+        └────── Head 1 ──────┘         └────── Head 2 ──────┘</pre>
+  <ul class="ol">
+    <li>H 和 W 都以「列」為單位存、以「列」為單位讀，跟矩陣乘法的方向對齊，不用轉置。</li>
+    <li>H 在 4 拍內完全不動，只在換 token 時切一次 a/b 2 選 1 mux；W ring 每拍轉一格。</li>
+    <li>如果反過來固定 W、每拍換 token，順序會變成 Final[0][0]、Final[1][0] …，不符合 raster，還要多一塊 buffer 重新排序。</li>
+    <li>H 用 shift 寫入：除法器依序產生 Ha0、Ha1、Hb0、Hb1，從同一端推入，不用寫入 decoder。</li>
+  </ul>
+
+  <h3>5. out 暫存器</h3>
+  <p>dp4 的結果打一拍進 out 暫存器再輸出。out_valid 為 0 時 out 必須是 0 (spec)，reset 後兩者都要是 0。</p>
+
+  <h3>6. 一個 Q_block 的輸出時間表</h3>
+  <p>以 Q_block i 的 D/M 快照那一拍為 t0 (= 68 + 8i)：</p>
+  <div class="tbl"><table>
+    <thead><tr><th>拍</th><th>Head 1 除法器</th><th>Head 2 除法器</th><th>dp4 → out</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">t0</td><td>快照</td><td>快照</td><td></td></tr>
+      <tr><td class="mono">t0+1</td><td>H1a0 = M1a0 / D1a</td><td>H2a0</td><td></td></tr>
+      <tr><td class="mono">t0+2</td><td>H1a1 = M1a1 / D1a</td><td>H2a1</td><td></td></tr>
+      <tr><td class="mono">t0+3</td><td>H1b0</td><td>H2b0</td><td><b>Fa0</b></td></tr>
+      <tr><td class="mono">t0+4</td><td>H1b1</td><td>H2b1</td><td>Fa1</td></tr>
+      <tr><td class="mono">t0+5 ~ 6</td><td>(閒置)</td><td>(閒置)</td><td>Fa2、Fa3</td></tr>
+      <tr><td class="mono">t0+7</td><td>(閒置)</td><td>(閒置)</td><td><b>Fb0</b></td></tr>
+      <tr><td class="mono">t0+8</td><td>下一輪快照</td><td>下一輪快照</td><td>Fb1</td></tr>
+      <tr><td class="mono">t0+9 ~ 10</td><td>下一輪 H1a0、H1a1</td><td>下一輪 H2a0、H2a1</td><td>Fb2、Fb3</td></tr>
+      <tr><td class="mono">t0+11</td><td>下一輪 H1b0</td><td>下一輪 H2b0</td><td><b>下一輪 Fa0</b></td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap">token a 的 4 個值在 t0+2 齊全，所以 Fa0 在 t0+3；下一輪 Fa0 在 t0+11，剛好接在 Fb3 (t0+10) 後面，輸出不斷。</p>
+
+  <h3>7. 兩個 head 共用一顆除法器？</h3>
+  <p>可行：順序改成 H1a0、H1a1、H2a0、H2a1 (先湊齊 token a)，再 H1b0 …，8 拍做 8 次剛好用滿。H 暫存器要分 a、b 兩組，避免 dp4 讀的時候值還在移動。但 token a 要到 t0+4 才齊，<b>latency 多 2 拍</b>。</p>
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>每個 head 一顆 (採用)</th><th>共用一顆</th></tr></thead>
+    <tbody>
+      <tr><td>除法器</td><td class="mono">2</td><td class="mono">1</td></tr>
+      <tr><td>第一個 out_valid</td><td class="mono">第 71 拍</td><td class="mono">第 73 拍</td></tr>
+      <tr><td>latency</td><td class="mono">≈ 8</td><td class="mono">≈ 10</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout why">
+    <div class="t">為什麼不共用</div>
+    <p>設除法器佔總面積 r，共用後的分數比 = (1 − r)² × 10 / 8，要 r &gt; 約 10.6% 才划算。整個設計有 12 顆 exp、10 顆除法器、十幾顆 dp2/mult/add 加上約 300 word 暫存器，一顆除法器很難佔到 10%。latency 已經只剩 8 拍左右，<b>每多 1 拍，分數差約 12%</b>，「省硬體、多花幾拍」在這裡要特別小心。合成後如果除法器真的很大，再代數字重算。</p>
+  </div>
+</section>
+
+<section id="b7">
+  <h2><span class="no">B7</span>整體時間線<span class="en">Timeline</span></h2>
+  <div class="fig">
+    <div class="scroll"><svg id="gantt" viewBox="0 0 1090 330" width="1090" role="img" aria-label="F_ATTN 整體時間線"></svg></div>
+    <p class="cap">橫軸是 posedge 編號 (第 0 ~ 63 個 posedge 取樣 64 筆輸入)。in_valid 在 63 和 64 之間的負緣下降。QB = Q_block。</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>posedge</th><th>事件</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">0 ~ 7</td><td>Q_block 0 進 current；之後 K/V 每 8 拍完成一個 block</td></tr>
+      <tr><td class="mono">8j + 8</td><td>Q_block 0 的 tile j 進 S1 (K/V 從尾端讀，tile 之間隔 8 拍)</td></tr>
+      <tr><td class="mono">64</td><td>Q_block 0 的 tile 7 進 S1；current ← Q_block 1</td></tr>
+      <tr><td class="mono">57 + 8i + j</td><td>Q_block i (i ≥ 1) 的 tile j 進 S1，每個 Q_block 剛好 8 拍</td></tr>
+      <tr><td class="mono">67 + 8i</td><td>Q_block i 的 D、M 變成最終值</td></tr>
+      <tr><td class="mono">68 + 8i</td><td>D/M 快照 (同一拍下一個 Q_block 的 tile 0 覆蓋 D、M)</td></tr>
+      <tr><td class="mono">69 ~ 72 + 8i</td><td>每個 head 的除法器依序算 Ha0、Ha1、Hb0、Hb1</td></tr>
+      <tr><td class="mono">71 + 8i ~ 78 + 8i</td><td>輸出 Final[2i][0..3]、Final[2i+1][0..3]</td></tr>
+      <tr><td class="mono">71 ~ 134</td><td><b>out_valid 連續 64 拍</b>；latency ≈ 71 − 63.5 ≈ <b>8 拍</b></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>時間檢查</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>檢查項目</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Q_block 0 的 tile j 用 K/V_block j：Head 2 最後一個 word 在 8j+7 到，8j+8 使用</td><td>✓</td></tr>
+      <tr><td>2</td><td>使用時 K/V 還在尾端：Head 1 lane 0 在 8j+8 才 shift，取樣的是 shift 前的值</td><td>✓ 剛好</td></tr>
+      <tr><td>3</td><td>Q_block 1 開始時 K/V_block 0 在頭端 (63 全部填滿)</td><td>✓</td></tr>
+      <tr><td>4</td><td>Max 回授在 S2 一拍內完成；D、M 回授在 S4 一拍內完成</td><td>✓</td></tr>
+      <tr><td>5</td><td>D、M 最終值只在 67+8i ~ 68+8i 有效，68+8i 快照</td><td>✓ 只有 1 拍</td></tr>
+      <tr><td>6</td><td>除法在 72+8i 做完，下一次快照在 76+8i</td><td>✓</td></tr>
+      <tr><td>7</td><td>Ha 用到 74+8i，下一個 Ha 在 77+8i 寫入</td><td>✓</td></tr>
+      <tr><td>8</td><td>Hb 用到 78+8i，下一個 Hb 在 79+8i 寫入</td><td>✓ 剛好</td></tr>
+      <tr><td>9</td><td>Final[2i−1][3] 在 70+8i，Final[2i][0] 在 71+8i，輸出不斷</td><td>✓</td></tr>
+      <tr><td>10</td><td>out_valid (71) 不與 in_valid (0 ~ 63) 重疊</td><td>✓</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout warn">
+    <div class="t">還沒驗證的前提</div>
+    <p>以上是逐拍推算，還沒模擬。前提是<b>每一級都在一拍內算完</b>；標「剛好」的第 2、5、8 項沒有任何餘裕，寫 RTL 時最容易差一拍，要用 testbench 確認。Q_block 0 的 tile 之間隔 8 拍，pipeline 每一級要有 valid bit，空拍不能更新狀態。</p>
+  </div>
+</section>
+
+<section id="b8">
+  <h2><span class="no">B8</span>資源預算<span class="en">Budget (estimate)</span></h2>
+  <div class="two">
+    <div class="tbl"><table>
+      <thead><tr><th>暫存器</th><th>word</th></tr></thead>
+      <tbody>
+        <tr><td>Q、K、V、W buffer</td><td class="mono">208</td></tr>
+        <tr><td>Pipeline register (每 head：4 + 6 + 6 + V 12)</td><td class="mono">~56</td></tr>
+        <tr><td>狀態 Max、D、M (每 head 8)</td><td class="mono">16</td></tr>
+        <tr><td>D/M 快照 (每 head 6)</td><td class="mono">12</td></tr>
+        <tr><td>H 暫存器 (每 head 4)</td><td class="mono">8</td></tr>
+        <tr><td>out</td><td class="mono">1</td></tr>
+        <tr><td><b>合計</b></td><td class="mono"><b>~301 (≈ 9.6k bit)</b></td></tr>
+      </tbody>
+    </table></div>
+    <div class="tbl"><table>
+      <thead><tr><th>DW 單元 (合計)</th><th>顆</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">DW_fp_exp</td><td class="mono">12</td></tr>
+        <tr><td class="mono">DW_fp_div</td><td class="mono">10 (8 ÷√2 + 2)</td></tr>
+        <tr><td class="mono">DW_fp_dp2</td><td class="mono">16</td></tr>
+        <tr><td class="mono">DW_fp_add / sub</td><td class="mono">16 / 12</td></tr>
+        <tr><td class="mono">DW_fp_mult</td><td class="mono">12</td></tr>
+        <tr><td class="mono">DW_fp_cmp</td><td class="mono">8</td></tr>
+        <tr><td class="mono">DW_fp_dp4</td><td class="mono">1</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <p class="cap">不含 exponent 壓縮和 control。Pipeline 級數越多 T 越短，但暫存器越多。實際面積要等每顆 DW 單元單獨合成的數字。</p>
+</section>
+
+<section id="b9">
+  <h2><span class="no">B9</span>精度考量<span class="en">Matching the golden within 1e-7</span></h2>
+  <p>誤差只容許約 1 ~ 2 ulp，運算順序要盡量跟 golden 一致。目前 00_TESTBED/PATTERN.v 是空殼，看不到 golden，以下是依 spec 公式推測，要用自己寫的 golden model 確認。</p>
+  <div class="tbl"><table>
+    <thead><tr><th>選擇</th><th>差異</th><th>目前做法</th></tr></thead>
+    <tbody>
+      <tr><td>tile 順序</td><td>online softmax 和一次算完的標準 softmax 捨入不同</td><td>嚴格照 spec：Q_block 外層、j = 0 → 7</td></tr>
+      <tr><td>dp2 vs mult + add</td><td><code>DW_fp_dp2</code> 只捨入一次，分開算捨入三次</td><td>待 golden 比對</td></tr>
+      <tr><td>÷√2</td><td>換成 ×(1/√2) 可能差 1 ulp</td><td>用 TA 的 <code>sqare_root_2</code> 做除法</td></tr>
+      <tr><td>O / l</td><td>換成乘倒數可能差 1 ulp</td><td>真的除法</td></tr>
+      <tr><td>D 的加法順序</td><td><code>C·D + (X + Y)</code> vs <code>(C·D + X) + Y</code></td><td>照 spec 的 rowsum：先 X + Y</td></tr>
+      <tr><td>先除 √2 還是先取 max</td><td>數學等價，捨入可能不同</td><td>照 spec 圖：每個 score 先除 √2</td></tr>
+      <tr><td>Wᵀ 的方向</td><td>用 W 的第 k 列還是第 k 行</td><td>照 spec 圖的 Out_weightᵀ：第 k 列</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="b10">
+  <h2><span class="no">B10</span>考慮過但不採用的方案<span class="en">Rejected alternatives</span></h2>
+  <div class="tbl"><table>
+    <thead><tr><th>方案</th><th>不採用的原因</th></tr></thead>
+    <tbody>
+      <tr><td>Systolic array</td><td>Area² 很貴、矩陣太小 (head_dim = 2)、瓶頸在 exp 和 online softmax 的序列相依</td></tr>
+      <tr><td>全部算完再輸出</td><td>latency 包含整個計算；邊算邊送可以把計算藏進輸出的 64 拍</td></tr>
+      <tr><td>單元減半 (一拍處理一列)</td><td>產生速度只有輸出的一半，輸出要晚約 64 拍開始；面積最多省一半，Area² 最多 1/4，但 latency 約 9 倍</td></tr>
+      <tr><td>可隨機讀取的 buffer</td><td>每個讀取埠要 64 選 1 × 32 bit 的大 mux</td></tr>
+      <tr><td>每個 head 一條 32 格 ring</td><td>輸入移 1 格、轉 block 移 4 格，每個 FF 要 3 選 1 mux</td></tr>
+      <tr><td>改存每列的 online 狀態、Q 用完就丟</td><td>狀態 8 word / token 比 Q 的 4 word / token 大</td></tr>
+      <tr><td>Head_out 寫回 Q buffer</td><td>邊算邊送後 Head_out 幾拍內就用掉，小的 H 暫存器就夠</td></tr>
+      <tr><td>等輸入結束才算 Q_block 0</td><td>latency 約 15 拍，比約 8 拍差將近 2 倍</td></tr>
+      <tr><td>兩個 head 交錯共用一套 datapath</td><td>原本的理由是填 FP 單元多拍運算的空檔，但 DW 單元是組合電路，這個理由不成立。只有在回授被拆成多級時才需要 (見 <a href="#b5">B5</a>)</td></tr>
+      <tr><td>兩個 head 共用一顆除法器</td><td>latency 多 2 拍，除法器要佔總面積 10.6% 以上才划算</td></tr>
+      <tr><td>快照用讀取 mux</td><td>面積差不多，但 mux delay 會加在除法器的關鍵路徑上</td></tr>
+      <tr><td>V ring 晚 3 拍轉 (省 V 的 pipeline register)</td><td>Q_block 0 在輸入期間各 lane 的讀取位置不同，控制太亂</td></tr>
+      <tr><td>依機率壓縮 Q/V 的 exponent</td><td>小 exponent「很少」出現不等於「不會」，spec 範圍內的值都必須正確</td></tr>
+      <tr><td>Final 寫回 Q 並壓縮 exponent</td><td>|Final| 最大 1.0，exponent 127，bit 30 不是 0</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="b11">
+  <h2><span class="no">B11</span>待確認、待量測、下一步<span class="en">Open items</span></h2>
+  <h3>要問助教</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>項目</th><th>spec 寫法</th><th>影響</th></tr></thead>
+    <tbody>
+      <tr><td>誤差門檻</td><td>「10e-7」也寫「1e-7」</td><td>字面上 10e-7 = 1e-6，差 10 倍。先照嚴格的 1e-7</td></tr>
+      <tr><td>K 的範圍</td><td>±0.5 ~ 255，其他都是 ±0 ~ 0.5</td><td>K 的 exponent 壓縮、PATTERN 的 stimulus 範圍</td></tr>
+      <tr><td>W 是否轉置</td><td>圖上標 Out_weightᵀ</td><td>Final 用 W 的列還是行</td></tr>
+      <tr><td>Golden 的運算順序</td><td>「follow the formulas and use IEEE IP」</td><td>B9 的各項選擇</td></tr>
+    </tbody>
+  </table></div>
+  <h3>要量測</h3>
+  <ul class="ol">
+    <li>每顆 DW 單元 (dp2、div、cmp、sub、exp、mult、add、dp4、div_seq) 在 90 nm 下的 <b>area 和 delay</b>：決定 pipeline 怎麼切、T 多少、是否塞得進 4,000,000。</li>
+    <li>S4 的 mult + add 回授能不能在一拍內完成：不行的話時間表要重排 (B5 第 5 點)。</li>
+  </ul>
+  <h3>下一步</h3>
+  <ol class="ol">
+    <li><b>Python FP32 golden model</b> (numpy float32)：把 B9 的選擇做成選項，看哪些會超過 1e-7；同時當 PATTERN 的參考答案。</li>
+    <li><b>DW 單元量測</b>：每顆包一層 wrapper 單獨合成。</li>
+    <li><b>PATTERN</b>：00_TESTBED/PATTERN.v 目前是空殼，要自己寫，含邊界值測試。</li>
+    <li><b>RTL</b>：依本說明書實作，先確認時間表裡標「剛好」的地方。</li>
+  </ol>
+</section>
+
+<footer>依據 docs/2026F_Lab04_Exercise.pdf 與架構討論整理。FlashAttention 圖源：Dao et al., 2022。DesignWare 單元資訊來自 synopsys.com/dw 公開的 instance 範例與技術文章。</footer>
+</div>
+
+<script>
+(function () {
+  var NS = 'http://www.w3.org/2000/svg';
+  function el(parent, tag, attrs, txt) {
+    var e = document.createElementNS(NS, tag);
+    for (var a in attrs) e.setAttribute(a, attrs[a]);
+    if (txt != null) e.textContent = txt;
+    parent.appendChild(e);
+    return e;
+  }
+
+  // ---- raster grids ----
+  var html = '<span class="h"></span><span class="h">D0</span><span class="h">D1</span><span class="h">D2</span><span class="h">D3</span>';
+  for (var t = 0; t < 16; t++) {
+    html += '<span class="h">T' + t + '</span>';
+    for (var d = 0; d < 4; d++) html += '<span class="' + (d < 2 ? 'c1' : 'c2') + '">' + (t * 4 + d) + '</span>';
+  }
+  document.getElementById('g-qkv').innerHTML = html;
+  html = '<span class="h"></span><span class="h">k0</span><span class="h">k1</span><span class="h">k2</span><span class="h">k3</span>';
+  for (var r = 0; r < 4; r++) {
+    html += '<span class="h">W' + r + '</span>';
+    for (var c = 0; c < 4; c++) html += '<span class="cw">' + (r * 4 + c) + '</span>';
+  }
+  document.getElementById('g-w').innerHTML = html;
+
+  // ---- matrix glyphs ----
+  var colors = { q: '--m-q', k: '--m-k', s: '--m-s', p: '--m-p', v: '--m-v', o: '--m-o', h: '--m-h', w: '--m-w' };
+  document.querySelectorAll('.mat').forEach(function (m) {
+    var rr = +m.dataset.r, cc = +m.dataset.c, col = 'var(' + colors[m.dataset.m] + ')', s = '';
+    m.style.gridTemplateColumns = 'repeat(' + cc + ', 9px)';
+    for (var i = 0; i < rr * cc; i++) s += '<i style="background:' + col + '"></i>';
+    m.innerHTML = s;
+  });
+
+  // ---- tiling svg ----
+  var svg = document.getElementById('tile-svg');
+  var ox = 52, oy = 52, cs = 16;
+  for (var j = 0; j < 8; j++) el(svg, 'text', { x: ox + j * 32 + 16, y: oy - 8, 'text-anchor': 'middle', 'font-size': 10, 'class': 'mono muted' }, 'K' + j);
+  for (var i2 = 0; i2 < 8; i2++) el(svg, 'text', { x: ox - 8, y: oy + i2 * 32 + 20, 'text-anchor': 'end', 'font-size': 10, 'class': 'mono muted' }, 'Q' + i2);
+  el(svg, 'text', { x: ox + 128, y: 16, 'text-anchor': 'middle', 'font-size': 12 }, 'K_block j');
+  for (var a = 0; a < 16; a++) for (var b = 0; b < 16; b++) {
+    el(svg, 'rect', { x: ox + b * cs, y: oy + a * cs, width: cs, height: cs, fill: a < 2 ? 'var(--hi)' : 'var(--m-s)', stroke: 'var(--paper)', 'stroke-width': 1, opacity: a < 2 ? 0.9 : 0.7 });
+  }
+  for (var k = 0; k <= 8; k++) {
+    el(svg, 'line', { x1: ox + k * 32, y1: oy, x2: ox + k * 32, y2: oy + 256, stroke: 'var(--m-edge)', 'stroke-width': 1.2 });
+    el(svg, 'line', { x1: ox, y1: oy + k * 32, x2: ox + 256, y2: oy + k * 32, stroke: 'var(--m-edge)', 'stroke-width': 1.2 });
+  }
+  for (var j2 = 0; j2 < 8; j2++) el(svg, 'text', { x: ox + j2 * 32 + 16, y: oy + 21, 'text-anchor': 'middle', 'font-size': 10, 'class': 'mono' }, j2);
+  el(svg, 'text', { x: ox + 128, y: oy + 278, 'text-anchor': 'middle', 'font-size': 12 }, '每格 = 一個 score，粗框 = 一個 2×2 tile');
+
+  // ---- bits ----
+  var bits = '00111111101101010000010011110011', bh = '';
+  for (var bi = 0; bi < 32; bi++) bh += '<span class="' + (bi === 0 ? 's' : bi < 9 ? 'e' : 'f') + '">' + bits[bi] + '</span>';
+  document.getElementById('bits').innerHTML = bh;
+
+  // ---- online softmax demo (float32 via Math.fround) ----
+  var f = Math.fround, SQ2 = f(1.41421353816986083984375);
+  var st = {};
+  function rnd(lo, hi) { var m = lo + Math.random() * (hi - lo); return f(Math.random() < 0.5 ? -m : m); }
+  function fmt(x) {
+    if (!isFinite(x)) return x > 0 ? 'Inf' : '−Inf';
+    return (Math.abs(x) >= 1e4 || (x !== 0 && Math.abs(x) < 1e-3)) ? x.toExponential(4) : x.toFixed(6);
+  }
+  function reset() {
+    var q = [rnd(0, 0.5), rnd(0, 0.5)];
+    st = { S: [], V: [], step: 0, m: -Infinity, l: 0, O: [0, 0], rows: [] };
+    for (var kk = 0; kk < 16; kk++) {
+      var kv = [rnd(0.5, 255), rnd(0.5, 255)];
+      st.S.push(f(f(f(q[0] * kv[0]) + f(q[1] * kv[1])) / SQ2));
+      st.V.push([rnd(0, 0.5), rnd(0, 0.5)]);
+    }
+    render();
+  }
+  function step() {
+    if (st.step >= 8) return;
+    var jj = st.step, s0 = st.S[2 * jj], s1 = st.S[2 * jj + 1];
+    var mNew = Math.max(st.m, s0, s1);
+    var corr = st.step === 0 ? 0 : f(Math.exp(f(st.m - mNew)));
+    var e0 = f(Math.exp(f(s0 - mNew))), e1 = f(Math.exp(f(s1 - mNew)));
+    st.l = f(f(corr * st.l) + f(e0 + e1));
+    for (var dd = 0; dd < 2; dd++) st.O[dd] = f(f(corr * st.O[dd]) + f(f(e0 * st.V[2 * jj][dd]) + f(e1 * st.V[2 * jj + 1][dd])));
+    st.m = mNew;
+    st.rows.push({ s0: s0, s1: s1, m: mNew, corr: st.step === 0 ? '— (first)' : fmt(corr), l: st.l, o0: st.O[0], o1: st.O[1] });
+    st.step++;
+    render();
+  }
+  function render() {
+    var body = '';
+    for (var jj = 0; jj < 8; jj++) {
+      var rw = st.rows[jj];
+      if (rw) body += '<tr' + (jj === st.step - 1 ? ' class="cur"' : '') + '><td>' + jj + '</td><td>' + fmt(rw.s0) + '</td><td>' + fmt(rw.s1) + '</td><td>' + fmt(rw.m) + '</td><td>' + rw.corr + '</td><td>' + fmt(rw.l) + '</td><td>' + fmt(rw.o0) + '</td><td>' + fmt(rw.o1) + '</td></tr>';
+      else body += '<tr class="pending"><td>' + jj + '</td><td>' + fmt(st.S[2 * jj]) + '</td><td>' + fmt(st.S[2 * jj + 1]) + '</td><td>·</td><td>·</td><td>·</td><td>·</td><td>·</td></tr>';
+    }
+    document.getElementById('d-body').innerHTML = body;
+    var smax = Math.max.apply(null, st.S.map(Math.abs));
+    document.getElementById('d-info').textContent = '本列 |S| 最大 ≈ ' + smax.toFixed(1) + '　·　已處理 ' + st.step + ' / 8 tiles';
+    var v = document.getElementById('d-verdict');
+    document.getElementById('d-step').disabled = st.step >= 8;
+    document.getElementById('d-all').disabled = st.step >= 8;
+    if (st.step < 8) { v.innerHTML = '按「下一個 tile」開始。'; return; }
+    var M = Math.max.apply(null, st.S), L = 0, R = [0, 0];
+    for (var kk = 0; kk < 16; kk++) { var e = Math.exp(st.S[kk] - M); L += e; R[0] += e * st.V[kk][0]; R[1] += e * st.V[kk][1]; }
+    var out = [f(st.O[0] / st.l), f(st.O[1] / st.l)], ref = [R[0] / L, R[1] / L];
+    var naive = 0; for (var k2 = 0; k2 < 16; k2++) naive = f(naive + f(Math.exp(st.S[k2])));
+    var err = Math.max(Math.abs(out[0] - ref[0]), Math.abs(out[1] - ref[1]));
+    v.innerHTML = 'Online (float32)  Ha = [' + fmt(out[0]) + ', ' + fmt(out[1]) + ']<br>' +
+      '標準 softmax (float64) = [' + fmt(ref[0]) + ', ' + fmt(ref[1]) + ']　|誤差| 最大 ' + err.toExponential(2) + '<br>' +
+      '<span style="color:var(--warn)">如果不減 max，直接加總 e^S (float32) = ' + fmt(naive) + '</span>';
+  }
+  document.getElementById('d-new').addEventListener('click', reset);
+  document.getElementById('d-step').addEventListener('click', step);
+  document.getElementById('d-all').addEventListener('click', function () { while (st.step < 8) step(); });
+  reset();
+
+  // ---- lane buffer figure ----
+  var lsvg = document.getElementById('lane-svg');
+  var slotMap = [[0, 0], [0, 1], [1, 0], [1, 1], [0, 2], [0, 3], [1, 2], [1, 3]]; // c[2:0] -> [head, lane]
+  function slotOf(h, L) { for (var s = 0; s < 8; s++) if (slotMap[s][0] === h && slotMap[s][1] === L) return s; }
+  function drawLanes() {
+    var cyc = +document.getElementById('lane-c').value, jt = +document.getElementById('lane-j').value;
+    var done = cyc >= 64;
+    document.getElementById('lane-j').disabled = !done;
+    document.getElementById('lane-c-out').textContent = done ? '完成 (64)' : cyc + ' / 64';
+    document.getElementById('lane-j-out').textContent = done ? 'j = ' + jt : '輸入中';
+    while (lsvg.firstChild) lsvg.removeChild(lsvg.firstChild);
+    var x0 = 112, cw = 62, ch = 28;
+    for (var p = 0; p < 8; p++) el(lsvg, 'text', { x: x0 + p * cw + cw / 2, y: 14, 'text-anchor': 'middle', 'font-size': 11, 'class': 'mono muted' }, p === 0 ? '頭端' : p === 7 ? '尾端' : 'entry ' + p);
+    var lastSlot = cyc > 0 && !done ? (cyc - 1) % 8 : -1;
+    for (var h = 0; h < 2; h++) {
+      var yb = 24 + h * 150;
+      el(lsvg, 'text', { x: 0, y: yb + 2 * ch + 4, 'font-size': 13, 'font-weight': 700 }, 'Head ' + (h + 1));
+      for (var L = 0; L < 4; L++) {
+        var y = yb + L * (ch + 4), s = slotOf(h, L);
+        el(lsvg, 'text', { x: 104, y: y + 19, 'text-anchor': 'end', 'font-size': 11, 'class': 'mono muted' }, 'lane ' + L);
+        var n = done ? 8 : Math.max(0, Math.ceil((cyc - s) / 8));
+        for (var p2 = 0; p2 < 8; p2++) {
+          var blk = null;
+          if (done) blk = (p2 + jt) % 8;
+          else if (p2 >= 8 - n) blk = p2 - (8 - n);
+          var fresh = !done && s === lastSlot && p2 === 7;
+          var fill = blk == null ? 'none' : fresh ? 'var(--hi)' : (h === 0 ? 'var(--m-q)' : 'var(--m-k)');
+          el(lsvg, 'rect', { x: x0 + p2 * cw + 1, y: y, width: cw - 2, height: ch, rx: 3, fill: fill, stroke: 'var(--m-edge)', 'stroke-dasharray': blk == null ? '3 3' : '0' });
+          if (blk != null) el(lsvg, 'text', { x: x0 + p2 * cw + cw / 2, y: y + 18, 'text-anchor': 'middle', 'font-size': 11, 'class': 'mono' }, 't' + (2 * blk + (L >> 1)) + 'd' + (h * 2 + (L & 1)));
+        }
+      }
+      el(lsvg, 'rect', { x: x0 - 1, y: yb - 3, width: cw, height: 4 * (ch + 4) + 2, fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2.5, rx: 4 });
+    }
+    var msg = done ? '頭端 = K_block ' + jt + ' (token ' + (2 * jt) + '、' + (2 * jt + 1) + ')' : (cyc === 0 ? '尚未輸入' : '第 ' + (cyc - 1) + ' 拍寫入 Head ' + (slotMap[(cyc - 1) % 8][0] + 1) + ' lane ' + slotMap[(cyc - 1) % 8][1] + ' (黃色)');
+    el(lsvg, 'text', { x: x0, y: 322, 'font-size': 12, fill: 'var(--accent)' }, msg);
+  }
+  document.getElementById('lane-c').addEventListener('input', drawLanes);
+  document.getElementById('lane-j').addEventListener('input', drawLanes);
+  drawLanes();
+
+  // ---- gantt timeline ----
+  var gs = document.getElementById('gantt');
+  var gx0 = 150, gk = 6.6;
+  function gx(n) { return gx0 + n * gk; }
+  function ry(ri) { return 30 + ri * 34; }
+  function gbar(y, a, b, fill, label, op) {
+    el(gs, 'rect', { x: gx(a), y: y, width: Math.max((b - a) * gk - 1, 2), height: 20, rx: 2, fill: fill, stroke: 'var(--m-edge)', 'stroke-width': .5, opacity: op || 1 });
+    if (label) el(gs, 'text', { x: gx(a) + (b - a) * gk / 2, y: y + 14, 'text-anchor': 'middle', 'font-size': 10, 'class': 'mono' }, label);
+  }
+  ['in_valid', '輸入 Q/K/V', 'K/V 讀取位置', 'S1 tile', 'S4 更新 D、M', 'D/M 快照', 'Divider', 'out_valid / out'].forEach(function (rn, ri) {
+    el(gs, 'text', { x: 0, y: ry(ri) + 14, 'font-size': 12 }, rn);
+  });
+  for (var t8 = 0; t8 <= 136; t8 += 8) {
+    el(gs, 'line', { x1: gx(t8), y1: 22, x2: gx(t8), y2: 300, stroke: 'var(--line)' });
+    el(gs, 'text', { x: gx(t8), y: 316, 'text-anchor': 'middle', 'font-size': 10, 'class': 'mono muted' }, t8);
+  }
+  el(gs, 'path', { d: 'M' + gx(0) + ' ' + (ry(0) + 20) + ' V' + ry(0) + ' H' + gx(63.5) + ' V' + (ry(0) + 20) + ' H' + gx(140), stroke: 'var(--fg)', fill: 'none', 'stroke-width': 1.5 });
+  for (var ib = 0; ib < 8; ib++) gbar(ry(1), ib * 8, ib * 8 + 8, 'var(--m-k)', 'B' + ib);
+  gbar(ry(2), 8, 65, 'var(--note-bg)', '尾端 (Q_block 0)');
+  gbar(ry(2), 65, 121, 'var(--m-k)', '頭端 (ring 轉動)');
+  var qbFill = ['var(--m-s)', 'var(--m-o)'];
+  for (var qj = 0; qj < 8; qj++) {
+    gbar(ry(3), 8 * qj + 8, 8 * qj + 9, qbFill[0]);
+    gbar(ry(4), 8 * qj + 11, 8 * qj + 12, qbFill[0]);
+  }
+  el(gs, 'text', { x: gx(36), y: ry(3) - 2, 'text-anchor': 'middle', 'font-size': 10, 'class': 'muted' }, 'QB0：每 8 拍一個 tile');
+  for (var qi = 1; qi < 8; qi++) {
+    gbar(ry(3), 57 + 8 * qi, 65 + 8 * qi, qbFill[qi % 2], 'QB' + qi);
+    gbar(ry(4), 60 + 8 * qi, 68 + 8 * qi, qbFill[qi % 2], 'QB' + qi);
+  }
+  for (var si = 0; si < 8; si++) {
+    gbar(ry(5), 68 + 8 * si, 69 + 8 * si, 'var(--hi)');
+    gbar(ry(6), 69 + 8 * si, 73 + 8 * si, 'var(--m-o)', '÷');
+    gbar(ry(7), 71 + 8 * si, 79 + 8 * si, si % 2 ? 'var(--m-w)' : 'var(--m-h)', 't' + (2 * si) + ',' + (2 * si + 1), .9);
+  }
+  el(gs, 'line', { x1: gx(63.5), y1: 18, x2: gx(63.5), y2: 300, stroke: 'var(--warn)', 'stroke-dasharray': '4 3' });
+  el(gs, 'text', { x: gx(63.5) - 4, y: 14, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--warn)' }, 'in_valid ↓ (63.5)');
+  el(gs, 'line', { x1: gx(71), y1: 18, x2: gx(71), y2: 300, stroke: 'var(--accent)', 'stroke-dasharray': '4 3' });
+  el(gs, 'text', { x: gx(71) + 4, y: 14, 'font-size': 11, fill: 'var(--accent)' }, '第一個 out_valid (71)：latency ≈ 8');
+})();
+</script>

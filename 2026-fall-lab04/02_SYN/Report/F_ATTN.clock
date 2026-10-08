@@ -1,0 +1,20 @@
+ 
+****************************************
+Report : clocks
+Design : F_ATTN
+Version: T-2022.03
+Date   : Thu Sep 17 03:29:07 2026
+****************************************
+
+Attributes:
+    d - dont_touch_network
+    f - fix_hold
+    p - propagated_clock
+    G - generated_clock
+    g - lib_generated_clock
+
+Clock          Period   Waveform            Attrs     Sources
+--------------------------------------------------------------------------------
+clk             50.00   {0 25}              d f       {clk}
+--------------------------------------------------------------------------------
+1

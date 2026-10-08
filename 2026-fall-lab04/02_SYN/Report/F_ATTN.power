@@ -1,0 +1,54 @@
+ 
+****************************************
+Report : power
+        -analysis_effort low
+Design : F_ATTN
+Version: T-2022.03
+Date   : Thu Sep 17 03:29:07 2026
+****************************************
+
+
+Library(s) Used:
+
+    slow (File: /RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/slow.db)
+
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+
+Global Operating Voltage = 1.62 
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1pW
+
+
+Attributes
+----------
+i - Including register clock pin internal power
+
+
+  Cell Internal Power  = 283.2951 uW   (99%)
+  Net Switching Power  =   3.1738 uW    (1%)
+                         ---------
+Total Dynamic Power    = 286.4689 uW  (100%)
+
+Cell Leakage Power     =   1.7866 uW
+
+
+                 Internal         Switching           Leakage            Total
+Power Group      Power            Power               Power              Power   (   %    )  Attrs
+--------------------------------------------------------------------------------------------------
+io_pad             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+memory             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+black_box          0.0000            0.0000            0.0000            0.0000  (   0.00%)
+clock_network      0.2695            0.0000            0.0000            0.0000  (   0.00%)  i
+register       9.2683e-03        4.6918e-04        8.7898e+05            0.2801  (  97.16%)
+sequential         0.0000            0.0000            0.0000            0.0000  (   0.00%)
+combinational  4.5695e-03        2.7047e-03        9.0758e+05        8.1818e-03  (   2.84%)
+--------------------------------------------------------------------------------------------------
+Total              0.2833 mW     3.1738e-03 mW     1.7866e+06 pW         0.2883 mW
+1

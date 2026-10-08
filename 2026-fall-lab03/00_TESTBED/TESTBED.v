@@ -13,15 +13,6 @@
 /**************************************************************************/
 `timescale 1ns/10ps
 
-`include "PATTERN.v"
-`ifdef RTL
-    // `include "ZUMA.v"
-    `include "ZUMA_encrypted.v"
-`endif
-`ifdef GATE
-    `include "ZUMA_SYN.v"
-`endif
-
 module TESTBED;
 
 wire            clk, rst_n;
@@ -45,7 +36,7 @@ initial begin
         $fsdbDumpvars(0,"+mda");
     `endif
     `ifdef GATE
-        $sdf_annotate("ZUMA_SYN.sdf", u_ZUMA);
+        $sdf_annotate("../02_SYN/Netlist/ZUMA_SYN.sdf", u_ZUMA);
         // $fsdbDumpfile("ZUMA_SYN.fsdb");
         // $fsdbDumpvars(0,"+mda");
     `endif
