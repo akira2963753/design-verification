@@ -39,7 +39,6 @@ module PATTERN (
     // parameter inst_arch_type = 0;
     // parameter inst_arch = 0;
     
-    localparam real SQRT2 = $bitstoshortreal(32'h3FB504F3);
     localparam real ERR_TOL = 1e-6;                   
     localparam int  MAX_LAT = 1000;                          
 
@@ -243,6 +242,7 @@ module PATTERN (
 
         real s [16];        // one row temp of scores
         real head [16][4];  // concat of head 1 (dim 0,1) and head 2 (dim 2,3)
+        real SQRT2 = $bitstoshortreal(32'h3FB504F3);
         real mx, sum, acc;  
 
         for(int h = 0; h < 2; h++) begin: head_loop
