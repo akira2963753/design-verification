@@ -1,0 +1,20 @@
+ 
+****************************************
+Report : clocks
+Design : ZUMA
+Version: O-2018.06
+Date   : Fri Oct  9 04:00:50 2026
+****************************************
+
+Attributes:
+    d - dont_touch_network
+    f - fix_hold
+    p - propagated_clock
+    G - generated_clock
+    g - lib_generated_clock
+
+Clock          Period   Waveform            Attrs     Sources
+--------------------------------------------------------------------------------
+clk              2.70   {0 1.35}            d f       {clk}
+--------------------------------------------------------------------------------
+1

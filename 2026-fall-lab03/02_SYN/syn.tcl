@@ -7,8 +7,8 @@
 #======================================================
 # (A) Global Parameters
 #======================================================
-set DESIGN "OISS"
-set CYCLE 8
+set DESIGN "ZUMA"
+set CYCLE 2.7
 set INPUT_DLY [expr 0.5*$CYCLE]
 set OUTPUT_DLY [expr 0.5*$CYCLE]
 
@@ -17,7 +17,7 @@ set OUTPUT_DLY [expr 0.5*$CYCLE]
 #======================================================
 # (B-1) analyze + elaborate
 set hdlin_auto_save_templates TRUE
-analyze -f sverilog $DESIGN\.v 
+analyze -f sverilog ../01_RTL/$DESIGN\.v 
 elaborate $DESIGN  
 
 # (B-2) read_sverilog

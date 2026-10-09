@@ -1,0 +1,49 @@
+ 
+****************************************
+Report : power
+        -analysis_effort low
+Design : ZUMA
+Version: O-2018.06
+Date   : Fri Oct  9 04:00:50 2026
+****************************************
+
+
+Library(s) Used:
+
+    slow (File: /home/B11130007/Desktop/DV/lib/slow.db)
+
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+
+Global Operating Voltage = 0.9  
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1pW
+
+
+  Cell Internal Power  =   4.6194 mW   (93%)
+  Net Switching Power  = 331.8853 uW    (7%)
+                         ---------
+Total Dynamic Power    =   4.9512 mW  (100%)
+
+Cell Leakage Power     =  92.7774 uW
+
+
+                 Internal         Switching           Leakage            Total
+Power Group      Power            Power               Power              Power   (   %    )  Attrs
+--------------------------------------------------------------------------------------------------
+io_pad             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+memory             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+black_box          0.0000            0.0000            0.0000            0.0000  (   0.00%)
+clock_network      0.0000            0.0000            0.0000            0.0000  (   0.00%)
+register           4.4147        8.5858e-02        3.8985e+07            4.5396  (  90.00%)
+sequential         0.0000            0.0000            0.0000            0.0000  (   0.00%)
+combinational      0.2046            0.2460        5.3792e+07            0.5045  (  10.00%)
+--------------------------------------------------------------------------------------------------
+Total              4.6193 mW         0.3319 mW     9.2777e+07 pW         5.0440 mW
+1

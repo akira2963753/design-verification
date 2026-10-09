@@ -1,0 +1,109 @@
+ 
+****************************************
+check_design summary:
+Version:     O-2018.06
+Date:        Fri Oct  9 03:57:47 2026
+****************************************
+
+                   Name                                            Total
+--------------------------------------------------------------------------------
+Inputs/Outputs                                                     19
+    Unconnected ports (LINT-28)                                     8
+    Shorted outputs (LINT-31)                                       5
+    Constant outputs (LINT-52)                                      6
+
+Cells                                                              62
+    Cells do not drive (LINT-1)                                    62
+
+Nets                                                                6
+    Unloaded nets (LINT-2)                                          6
+--------------------------------------------------------------------------------
+
+Warning: In design 'ZUMA', cell 'B_149' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_150' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_151' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_152' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_153' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_154' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_155' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_156' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_157' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_158' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_159' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_160' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_161' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_162' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_163' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_164' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_165' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_166' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_167' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_168' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_169' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_170' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_171' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_172' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_173' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_174' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_175' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_176' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_177' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_178' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_179' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_180' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_181' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_182' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_183' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_184' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_185' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_186' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_187' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_188' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_189' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_190' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_191' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_192' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_193' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_194' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_195' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_196' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_198' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_199' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_200' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_201' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_202' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_203' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_204' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_205' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_210' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_211' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_212' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_213' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_214' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', cell 'B_216' does not drive any nets. (LINT-1)
+Warning: In design 'ZUMA', net 'net1117' driven by pin 'add_427/Z_8' has no loads. (LINT-2)
+Warning: In design 'ZUMA', net 'net1116' driven by pin 'sll_136/Z_0' has no loads. (LINT-2)
+Warning: In design 'ZUMA', net 'net1115' driven by pin 'C21980/Z' has no loads. (LINT-2)
+Warning: In design 'ZUMA', net 'net1114' driven by pin 'C21977/Z' has no loads. (LINT-2)
+Warning: In design 'ZUMA', net 'net1113' driven by pin 'C14269/Z' has no loads. (LINT-2)
+Warning: In design 'ZUMA', net 'net1112' driven by pin 'C9482/Z' has no loads. (LINT-2)
+Warning: In design 'ZUMA', port 'ring_len[7]' is not connected to any nets. (LINT-28)
+Warning: In design 'ZUMA', port 'ring_len[6]' is not connected to any nets. (LINT-28)
+Warning: In design 'ZUMA', port 'ring_len[5]' is not connected to any nets. (LINT-28)
+Warning: In design 'ZUMA', port 'ring_len[4]' is not connected to any nets. (LINT-28)
+Warning: In design 'ZUMA', port 'ring_len[3]' is not connected to any nets. (LINT-28)
+Warning: In design 'ZUMA', port 'ring_len[2]' is not connected to any nets. (LINT-28)
+Warning: In design 'ZUMA', port 'ring_len[1]' is not connected to any nets. (LINT-28)
+Warning: In design 'ZUMA', port 'ring_len[0]' is not connected to any nets. (LINT-28)
+Warning: In design 'ZUMA', output port 'elim_cnt[8]' is connected directly to output port 'elim_cnt[3]'. (LINT-31)
+Warning: In design 'ZUMA', output port 'elim_cnt[8]' is connected directly to output port 'elim_cnt[4]'. (LINT-31)
+Warning: In design 'ZUMA', output port 'elim_cnt[8]' is connected directly to output port 'elim_cnt[5]'. (LINT-31)
+Warning: In design 'ZUMA', output port 'elim_cnt[8]' is connected directly to output port 'elim_cnt[6]'. (LINT-31)
+Warning: In design 'ZUMA', output port 'elim_cnt[8]' is connected directly to output port 'elim_cnt[7]'. (LINT-31)
+Warning: In design 'ZUMA', output port 'elim_cnt[8]' is connected directly to 'logic 0'. (LINT-52)
+Warning: In design 'ZUMA', output port 'elim_cnt[7]' is connected directly to 'logic 0'. (LINT-52)
+Warning: In design 'ZUMA', output port 'elim_cnt[6]' is connected directly to 'logic 0'. (LINT-52)
+Warning: In design 'ZUMA', output port 'elim_cnt[5]' is connected directly to 'logic 0'. (LINT-52)
+Warning: In design 'ZUMA', output port 'elim_cnt[4]' is connected directly to 'logic 0'. (LINT-52)
+Warning: In design 'ZUMA', output port 'elim_cnt[3]' is connected directly to 'logic 0'. (LINT-52)
+1

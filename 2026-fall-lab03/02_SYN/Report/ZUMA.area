@@ -1,0 +1,30 @@
+ 
+****************************************
+Report : area
+Design : ZUMA
+Version: O-2018.06
+Date   : Fri Oct  9 04:00:50 2026
+****************************************
+
+Library(s) Used:
+
+    slow (File: /home/B11130007/Desktop/DV/lib/slow.db)
+
+Number of ports:                           46
+Number of nets:                          8058
+Number of cells:                         7990
+Number of combinational cells:           6907
+Number of sequential cells:              1083
+Number of macros/black boxes:               0
+Number of buf/inv:                        594
+Number of references:                     122
+
+Combinational area:              26102.261560
+Buf/Inv area:                     1275.724842
+Noncombinational area:           14649.666955
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                 40751.928515
+Total area:                 undefined
+1
