@@ -9,21 +9,20 @@
 ******************************************************************************/
 
 /******************************************************************************
-* Number formats (all fixed point, FP32 only at the input / output converters)
-*   Q' = Q * c   26 fraction bits, c = log2(e) / sqare_root_2 (sqare_root_2 = 32'h3FB504F3)
-*   K            17 fraction bits
-*   V, W         22 fraction bits
-*   t = Q' . K   20 fraction bits, the score already in the exponent of 2: e^(qk/sqrt2) = 2^t
-*   weight       2^(t - r), r = integer running max >= t, 24 fraction bits, in (0, 1]
-*   D            24 fraction bits, M 25 fraction bits, H = M / D 23 fraction bits
-* Conversions, t and the numerator terms round to nearest (unbiased, one bit cheaper than
-* truncation). Widths were picked with a bit-exact Python model: max |out - golden| = 3.5e-7
-* over 3100 patterns (golden = double precision, demo tolerance = 1e-6).
-* Signs: Q' is one's complement (value = Q_fx + sign, only XOR at the input), K / V / W are
-* two's complement, so every dot product is one signed sum of products that synthesis can
-* merge into a single partial-product tree.
-* H = M / D uses a radix-2 carry-save SRT divider (no carry chain per quotient bit).
+* Fixed-point precision (FP32 only at the input / output converters)
+* Param Value  Signal                          Format (total bits)
+* NC    19     c = log2(e) / sqare_root_2      unsigned, 20 bits
+* FQ    25     Q' = Q * c                      one's complement {sign, 25}, 26 bits
+* FK    16     K (|K| <= 255)                  two's complement, 25 bits
+* FV    22     V (|V| <= 0.5)                  two's complement, 23 bits
+* FW    22     W (|W| <= 0.5)                  two's complement, 23 bits
+* FT    20     t = Q' . K, e^(qk/sqrt2) = 2^t  two's complement, 30 bits
+* PW    23     weight 2^(t - r), D             weight 24 bits (0, 1], D 28 bits (<= 16)
+* FM    24     M (|M| <= 8)                    two's complement, 29 bits
+* FH    22     H = M / D                       {sign, 21}, 22 bits (+1/2 LSB in dp4)
+* Value = fraction bits (NC: bits of c), names as in 10_Model/fxp.ipynb
 ******************************************************************************/
+
 module F_ATTN #(
     parameter inst_sig_width = 23,
     parameter inst_exp_width = 8,
@@ -50,47 +49,51 @@ module F_ATTN #(
     // input conversion
     wire [7:0] q_e, k_e, v_e, w_e;
     wire [23:0] q_m, k_m, v_m, w_m;
-    wire [45:0] q_num;
+    wire [43:0] q_num;
     wire [7:0] q_sa, k_sa, v_sa, w_sa;
-    wire [27:0] q_sh;
-    wire [25:0] k_sh;
-    wire [23:0] v_sh, w_sh;
-    wire [28:0] q_rd;
-    wire [26:0] k_rd;
-    wire [24:0] v_rd, w_rd;
-    wire [25:0] q_mag;
-    wire [24:0] k_mag;
-    wire [21:0] v_mag, w_mag;
-    wire [26:0] Q_fx;
-    wire [25:0] K_fx;
-    wire [22:0] V_fx, W_fx;
+    wire [26:0] q_sh;
+    wire [24:0] k_sh;
+    wire [23:0] v_sh;
+    wire [23:0] w_sh;
+    wire [27:0] q_rd;
+    wire [25:0] k_rd;
+    wire [24:0] v_rd;
+    wire [24:0] w_rd;
+    wire [24:0] q_mag;
+    wire [23:0] k_mag;
+    wire [21:0] v_mag;
+    wire [21:0] w_mag;
+    wire [25:0] Q_fx;
+    wire [24:0] K_fx;
+    wire [22:0] V_fx;
+    wire [22:0] W_fx;
 
     // QKV Buffer 都分成兩個 head，且每個 head 有四條 lanes 每個 lane 裡面有 8 筆資料
     // [data size] name [lane][num]，注意 Q 分成 Cur 跟 Buf 主要是因為我們要固定 Q
-    // Q' = one's complement {sign, 26-bit}, K = two's complement 26-bit, V = two's complement 23-bit
-    reg [26:0] H1_Q_Cur [0:3];
-    reg [26:0] H1_Q_Buf [0:3][0:6];
-    reg [26:0] H2_Q_Cur [0:3];
-    reg [26:0] H2_Q_Buf [0:3][0:6];
-    reg [25:0] H1_K_Buf [0:3][0:7];
-    reg [25:0] H2_K_Buf [0:3][0:7];
+    // Q' = one's complement {sign, 25 bits}, K / V = two's complement 25 / 23 bits
+    reg [25:0] H1_Q_Cur [0:3];
+    reg [25:0] H1_Q_Buf [0:3][0:6];
+    reg [25:0] H2_Q_Cur [0:3];
+    reg [25:0] H2_Q_Buf [0:3][0:6];
+    reg [24:0] H1_K_Buf [0:3][0:7];
+    reg [24:0] H2_K_Buf [0:3][0:7];
     reg [22:0] H1_V_Buf [0:3][0:7];
     reg [22:0] H2_V_Buf [0:3][0:7];
 
-    // Weight Buffer [data size] name [lane][num], two's complement 23-bit
+    // Weight Buffer [data size] name [lane][num], two's complement 23 bits
     reg [22:0] W_Buf [0:3][0:3];
 
     // output stage
     reg out_active;                     // 64 output cycles in progress
     reg [5:0] out_cnt;                  // {Q_block, token a / b, dim k} of the output in this cycle
     wire h_a_ready;                     // token a of a Q_block has both H words (from head 1)
-    wire [22:0] H1_Ha0, H1_Ha1, H1_Hb0, H1_Hb1;      // {sign, 22-bit magnitude}
-    wire [22:0] H2_Ha0, H2_Ha1, H2_Hb0, H2_Hb1;
-    wire [22:0] H1_x0, H1_x1, H2_x0, H2_x1;          // H of the token being output
+    wire [21:0] H1_Ha0, H1_Ha1, H1_Hb0, H1_Hb1;    // {sign, 21-bit magnitude}
+    wire [21:0] H2_Ha0, H2_Ha1, H2_Hb0, H2_Hb1;
+    wire [21:0] H1_x0, H1_x1, H2_x0, H2_x1;        // H of the token being output
     wire signed [22:0] H1_y0, H1_y1, H2_y0, H2_y1;   // one's complement H (value = y + sign)
     wire signed [22:0] Wk0, Wk1, Wk2, Wk3;           // W[k][0..3]
     wire signed [47:0] wc0, wc1, wc2, wc3;           // + W when H is negative
-    wire signed [47:0] facc;                         // Final with 45 fraction bits
+    wire signed [47:0] facc;                       // Final with 45 fraction bits
     wire f_sign;
     wire [45:0] f_mag;
     wire [45:0] nz0, nz1, nz2, nz3, nz4, nz5;
@@ -108,11 +111,11 @@ module F_ATTN #(
 
     // read port of the tile issued in this cycle (a = token 2i / 2j, b = token 2i+1 / 2j+1)
     // (V: the tile in S3)
-    wire [26:0] H1_Qa0, H1_Qa1, H1_Qb0, H1_Qb1;
-    wire [25:0] H1_Ka0, H1_Ka1, H1_Kb0, H1_Kb1;
+    wire [25:0] H1_Qa0, H1_Qa1, H1_Qb0, H1_Qb1;
+    wire [24:0] H1_Ka0, H1_Ka1, H1_Kb0, H1_Kb1;
     wire [22:0] H1_Va0, H1_Va1, H1_Vb0, H1_Vb1;
-    wire [26:0] H2_Qa0, H2_Qa1, H2_Qb0, H2_Qb1;
-    wire [25:0] H2_Ka0, H2_Ka1, H2_Kb0, H2_Kb1;
+    wire [25:0] H2_Qa0, H2_Qa1, H2_Qb0, H2_Qb1;
+    wire [24:0] H2_Ka0, H2_Ka1, H2_Kb0, H2_Kb1;
     wire [22:0] H2_Va0, H2_Va1, H2_Vb0, H2_Vb1;
 
     integer i, b;
@@ -174,40 +177,41 @@ module F_ATTN #(
     //=============================================================
     // fp32 = (-1)^s * m24 * 2^(e - 150), e = 0 is zero (ieee_compliance = 0)
     // each conversion keeps one extra bit then rounds: mag = (x + 1) >> 1 (round half up)
-    // Q' (26 fraction bits): x = (m24 * c * 2^21) >> 18 >> (126 - e)   (|Q| <= 0.5 -> e <= 126)
+    // (a shift past the width gives 0, so only e = 0 and out-of-range e need a clamp)
+    // Q' (25 fraction bits): x = (m24 * c * 2^19) >> 17 >> (126 - e)   (|Q| <= 0.5)
     assign q_e = Q[30:23];
     assign q_m = {(q_e != 8'd0), Q[22:0]};
-    assign q_num = q_m * 22'd2139388;
+    assign q_num = q_m * 20'd534847;
     assign q_sa = 8'd126 - q_e;
-    assign q_sh = q_num[45:18] >> q_sa;
-    assign q_rd = {1'b0, q_sh} + 29'd1;
-    assign q_mag = ((q_e == 8'd0) || (q_e > 8'd126) || (q_sa > 8'd27))? 26'd0 : q_rd[26:1];
-    assign Q_fx = {Q[31], q_mag ^ {26{Q[31]}}};    // one's complement, value = Q_fx + sign
+    assign q_sh = q_num[43:17] >> q_sa;
+    assign q_rd = {1'b0, q_sh} + 1'b1;
+    assign q_mag = ((q_e == 8'd0) || (q_e > 8'd126))? 25'd0 : q_rd[25:1];
+    assign Q_fx = {Q[31], q_mag ^ {25{Q[31]}}};    // one's complement, value = Q_fx + sign
 
-    // K (17 fraction bits): x = (m24 << 2) >> (134 - e)   (0.5 <= |K| <= 255 -> 126 <= e <= 134)
+    // K (16 fraction bits): x = m24 * 2^1 >> (134 - e)   (0.5 <= |K| <= 255 -> 126 <= e <= 134)
     assign k_e = K[30:23];
     assign k_m = {(k_e != 8'd0), K[22:0]};
     assign k_sa = 8'd134 - k_e;
-    assign k_sh = {k_m, 2'b00} >> k_sa;
-    assign k_rd = {1'b0, k_sh} + 27'd1;
-    assign k_mag = ((k_e == 8'd0) || (k_e > 8'd134) || (k_sa > 8'd25))? 25'd0 : k_rd[25:1];
-    assign K_fx = (K[31])? (26'd0 - {1'b0, k_mag}) : {1'b0, k_mag};
+    assign k_sh = {k_m, 2'd0} >> (k_sa + 1);
+    assign k_rd = {1'b0, k_sh} + 1'b1;
+    assign k_mag = ((k_e == 8'd0) || (k_e > 8'd134))? 24'd0 : k_rd[24:1];
+    assign K_fx = (K[31])? (25'd0 - {1'b0, k_mag}) : {1'b0, k_mag};
 
-    // V / W (22 fraction bits): x = m24 >> (127 - e)   (|V|, |W| <= 0.5 -> e <= 126)
+    // V / W (22 / 22 fraction bits): x = m24 * 2^(F - 23) >> (126 - e)   (|V|, |W| <= 0.5 -> e <= 126)
     assign v_e = V[30:23];
     assign v_m = {(v_e != 8'd0), V[22:0]};
-    assign v_sa = 8'd127 - v_e;
-    assign v_sh = v_m >> v_sa;
-    assign v_rd = {1'b0, v_sh} + 25'd1;
-    assign v_mag = ((v_e == 8'd0) || (v_e > 8'd126) || (v_sa > 8'd23))? 22'd0 : v_rd[22:1];
+    assign v_sa = 8'd126 - v_e;
+    assign v_sh = {v_m, 1'd0} >> (v_sa + 2);
+    assign v_rd = {1'b0, v_sh} + 1'b1;
+    assign v_mag = ((v_e == 8'd0) || (v_e > 8'd126))? 22'd0 : v_rd[22:1];
     assign V_fx = (V[31])? (23'd0 - {1'b0, v_mag}) : {1'b0, v_mag};
 
     assign w_e = out_weight[30:23];
     assign w_m = {(w_e != 8'd0), out_weight[22:0]};
-    assign w_sa = 8'd127 - w_e;
-    assign w_sh = w_m >> w_sa;
-    assign w_rd = {1'b0, w_sh} + 25'd1;
-    assign w_mag = ((w_e == 8'd0) || (w_e > 8'd126) || (w_sa > 8'd23))? 22'd0 : w_rd[22:1];
+    assign w_sa = 8'd126 - w_e;
+    assign w_sh = {w_m, 1'd0} >> (w_sa + 2);
+    assign w_rd = {1'b0, w_sh} + 1'b1;
+    assign w_mag = ((w_e == 8'd0) || (w_e > 8'd126))? 22'd0 : w_rd[22:1];
     assign W_fx = (out_weight[31])? (23'd0 - {1'b0, w_mag}) : {1'b0, w_mag};
 
     //=============================================================
@@ -468,24 +472,25 @@ module F_ATTN #(
     assign H2_x0 = (out_cnt[2])? H2_Hb0 : H2_Ha0;
     assign H2_x1 = (out_cnt[2])? H2_Hb1 : H2_Ha1;
 
+    // the divider truncates |H|, so |H| + 1/2 LSB = {mag, 1} is used (unbiased, half the error)
     // H = {sign, magnitude} is used as one's complement y = sign ? ~mag : mag (= -mag - 1),
     // and the missing +1 * W is added back, so the dot product stays one signed sum
-    assign H1_y0 = {H1_x0[22], H1_x0[21:0] ^ {22{H1_x0[22]}}};
-    assign H1_y1 = {H1_x1[22], H1_x1[21:0] ^ {22{H1_x1[22]}}};
-    assign H2_y0 = {H2_x0[22], H2_x0[21:0] ^ {22{H2_x0[22]}}};
-    assign H2_y1 = {H2_x1[22], H2_x1[21:0] ^ {22{H2_x1[22]}}};
+    assign H1_y0 = {H1_x0[21], {H1_x0[20:0], 1'b1} ^ {22{H1_x0[21]}}};
+    assign H1_y1 = {H1_x1[21], {H1_x1[20:0], 1'b1} ^ {22{H1_x1[21]}}};
+    assign H2_y0 = {H2_x0[21], {H2_x0[20:0], 1'b1} ^ {22{H2_x0[21]}}};
+    assign H2_y1 = {H2_x1[21], {H2_x1[20:0], 1'b1} ^ {22{H2_x1[21]}}};
 
     assign Wk0 = W_Buf[0][0];
     assign Wk1 = W_Buf[1][0];
     assign Wk2 = W_Buf[2][0];
     assign Wk3 = W_Buf[3][0];
 
-    assign wc0 = (H1_x0[22])? Wk0 : 23'sd0;
-    assign wc1 = (H1_x1[22])? Wk1 : 23'sd0;
-    assign wc2 = (H2_x0[22])? Wk2 : 23'sd0;
-    assign wc3 = (H2_x1[22])? Wk3 : 23'sd0;
+    assign wc0 = (H1_x0[21])? Wk0 : 23'sd0;
+    assign wc1 = (H1_x1[21])? Wk1 : 23'sd0;
+    assign wc2 = (H2_x0[21])? Wk2 : 23'sd0;
+    assign wc3 = (H2_x1[21])? Wk3 : 23'sd0;
 
-    // H (22-bit magnitude, 23 fraction bits) * W (22 fraction bits) -> 45 fraction bits
+    // H ({21-bit magnitude, 1}, 23 fraction bits) * W (22 fraction bits) -> 45 fraction bits
     assign facc = H1_y0 * Wk0 + H1_y1 * Wk1 + H2_y0 * Wk2 + H2_y1 * Wk3 + wc0 + wc1 + wc2 + wc3;
 
     //=============================================================
@@ -543,29 +548,30 @@ module ATTN_PE (
     input wire issue,
     input wire tile_first,
     input wire tile_last,
-    input wire [26:0] Qa0,
-    input wire [26:0] Qa1,
-    input wire [26:0] Qb0,
-    input wire [26:0] Qb1,
-    input wire [25:0] Ka0,
-    input wire [25:0] Ka1,
-    input wire [25:0] Kb0,
-    input wire [25:0] Kb1,
+    input wire [25:0] Qa0,
+    input wire [25:0] Qa1,
+    input wire [25:0] Qb0,
+    input wire [25:0] Qb1,
+    input wire [24:0] Ka0,
+    input wire [24:0] Ka1,
+    input wire [24:0] Kb0,
+    input wire [24:0] Kb1,
     input wire [22:0] Va0,
     input wire [22:0] Va1,
     input wire [22:0] Vb0,
     input wire [22:0] Vb1,
-    output wire [22:0] Ha0,
-    output wire [22:0] Ha1,
-    output wire [22:0] Hb0,
-    output wire [22:0] Hb1,
+    output wire [21:0] Ha0,
+    output wire [21:0] Ha1,
+    output wire [21:0] Hb0,
+    output wire [21:0] Hb1,
     output wire h_a_ready
 );
 
+
     // S1 : Sxy = row x of Q against key y of K (y = 0 : key a, y = 1 : key b)
-    wire signed [26:0] qa0, qa1, qb0, qb1;
-    wire signed [25:0] ka0, ka1, kb0, kb1;
-    wire signed [52:0] ta0, ta1, tb0, tb1;
+    wire signed [25:0] qa0, qa1, qb0, qb1;
+    wire signed [24:0] ka0, ka1, kb0, kb1;
+    wire signed [50:0] ta0, ta1, tb0, tb1;
 
     // S1 -> S2 register
     reg s2_valid, s2_first, s2_last;
@@ -579,32 +585,33 @@ module ATTN_PE (
     wire [9:0] r_a_nxt, r_b_nxt;
     wire [10:0] da0, da1, db0, db1, dla, dlb;
     wire [4:0] sa0, sa1, sb0, sb1, dla_s, dlb_s;
-    wire [24:0] Pa0, Pa1, Pb0, Pb1;             // 2^frac(t), 24 fraction bits
+    wire [23:0] Pa0, Pa1, Pb0, Pb1;             // 2^frac(t), 23 fraction bits
 
     // S2 -> S3 register
     reg s3_valid, s3_first, s3_last;
-    reg [24:0] s3_wa0, s3_wa1, s3_wb0, s3_wb1;
+    reg [23:0] s3_wa0, s3_wa1, s3_wb0, s3_wb1;
     reg [4:0] s3_dla, s3_dlb;
 
     // S3
-    reg [28:0] Da, Db;                          // 24 fraction bits, (0.5, 16]
-    reg [29:0] Ma0, Ma1, Mb0, Mb1;              // signed, 25 fraction bits
-    wire [28:0] Da_nxt, Db_nxt;
-    wire signed [25:0] wa0, wa1, wb0, wb1;          // weights as positive signed numbers
+    reg [27:0] Da, Db;                        // 23 fraction bits, (0.5, 16]
+    reg [28:0] Ma0, Ma1, Mb0, Mb1;            // signed, 24 fraction bits
+    wire [27:0] Da_nxt, Db_nxt;
+    wire signed [24:0] wa0, wa1, wb0, wb1;          // weights as positive signed numbers
     wire signed [22:0] va0s, va1s, vb0s, vb1s;
-    wire signed [48:0] va0, va1, vb0, vb1;
-    wire [29:0] pva0, pva1, pvb0, pvb1;
-    wire signed [29:0] Ma0_sh, Ma1_sh, Mb0_sh, Mb1_sh;  // own signed assignment: >>> stays arithmetic
-    wire [29:0] Ma0_nxt, Ma1_nxt, Mb0_nxt, Mb1_nxt;
-    wire [28:0] Ma0_abs, Ma1_abs, Mb0_abs, Mb1_abs;
+    wire signed [47:0] va0, va1, vb0, vb1;
+    wire [28:0] pva0, pva1, pvb0, pvb1;
+    wire signed [28:0] Ma0_sh, Ma1_sh, Mb0_sh, Mb1_sh;  // own signed assignment: >>> stays arithmetic
+    wire [28:0] Ma0_nxt, Ma1_nxt, Mb0_nxt, Mb1_nxt;
+    wire [27:0] Ma0_abs, Ma1_abs, Mb0_abs, Mb1_abs;
     wire snap_en;
 
     // snapshot -> divider -> H
-    reg [29:0] M_snap0, M_snap1, M_snap2, M_snap3;  // {sign, |M|}, shift toward 0: Ma0, Ma1, Mb0, Mb1
-    reg [28:0] D_snap0, D_snap1;                    // shift toward 0: Da, Db
+    reg [28:0] M_snap0, M_snap1, M_snap2, M_snap3;  // {sign, |M|}, shift toward 0: Ma0, Ma1, Mb0, Mb1
+    reg [27:0] D_snap0, D_snap1;                    // shift toward 0: Da, Db
     reg [3:0] div_step;                             // one-hot: division k in progress
-    wire [21:0] hmag;                               // saturated to 22 bits (|H| = 0.5 only in theory)
-    reg [22:0] H_a0, H_a1, H_b0, H_b1;              // {sign, 22-bit magnitude}
+    wire [27:0] div_num, div_den;
+    wire [20:0] hmag;                             // saturated to 21 bits (|H| = 0.5 only in theory)
+    reg [21:0] H_a0, H_a1, H_b0, H_b1;            // {sign, 21-bit magnitude}
 
 
     //=============================================================
@@ -620,11 +627,11 @@ module ATTN_PE (
     assign kb1 = Kb1;
 
     // Q' is one's complement: q' * k = q * k + (sign ? k : 0), the whole score is one signed
-    // sum of products (43 fraction bits) + 2^22, keep 20 fraction bits (round half up)
-    assign ta0 = qa0 * ka0 + qa1 * ka1 + ((Qa0[26])? ka0 : 26'sd0) + ((Qa1[26])? ka1 : 26'sd0) + 53'sd4194304;
-    assign ta1 = qa0 * kb0 + qa1 * kb1 + ((Qa0[26])? kb0 : 26'sd0) + ((Qa1[26])? kb1 : 26'sd0) + 53'sd4194304;
-    assign tb0 = qb0 * ka0 + qb1 * ka1 + ((Qb0[26])? ka0 : 26'sd0) + ((Qb1[26])? ka1 : 26'sd0) + 53'sd4194304;
-    assign tb1 = qb0 * kb0 + qb1 * kb1 + ((Qb0[26])? kb0 : 26'sd0) + ((Qb1[26])? kb1 : 26'sd0) + 53'sd4194304;
+    // sum of products (41 fraction bits) + 2^20, keep 20 fraction bits (round half up)
+    assign ta0 = qa0 * ka0 + qa1 * ka1 + ((Qa0[25])? ka0 : 25'sd0) + ((Qa1[25])? ka1 : 25'sd0) + 51'sd1048576;
+    assign ta1 = qa0 * kb0 + qa1 * kb1 + ((Qa0[25])? kb0 : 25'sd0) + ((Qa1[25])? kb1 : 25'sd0) + 51'sd1048576;
+    assign tb0 = qb0 * ka0 + qb1 * ka1 + ((Qb0[25])? ka0 : 25'sd0) + ((Qb1[25])? ka1 : 25'sd0) + 51'sd1048576;
+    assign tb1 = qb0 * kb0 + qb1 * kb1 + ((Qb0[25])? kb0 : 25'sd0) + ((Qb1[25])? kb1 : 25'sd0) + 51'sd1048576;
 
     //=============================================================
     //                    S1 -> S2 Register
@@ -644,10 +651,10 @@ module ATTN_PE (
     end
 
     always @(posedge clk) begin
-        s2_Sa0 <= ta0[52:23];
-        s2_Sa1 <= ta1[52:23];
-        s2_Sb0 <= tb0[52:23];
-        s2_Sb1 <= tb1[52:23];
+        s2_Sa0 <= ta0[50:21];
+        s2_Sa1 <= ta1[50:21];
+        s2_Sb0 <= tb0[50:21];
+        s2_Sb1 <= tb1[50:21];
     end
 
     //=============================================================
@@ -698,23 +705,19 @@ module ATTN_PE (
     //=============================================================
     ATTN_POW2 u_s2_pow_a0 (
         .fr(s2_Sa0[19:0]),
-        .p(Pa0)
-    );
+        .p(Pa0));
 
     ATTN_POW2 u_s2_pow_a1 (
         .fr(s2_Sa1[19:0]),
-        .p(Pa1)
-    );
+        .p(Pa1));
 
     ATTN_POW2 u_s2_pow_b0 (
         .fr(s2_Sb0[19:0]),
-        .p(Pb0)
-    );
+        .p(Pb0));
 
     ATTN_POW2 u_s2_pow_b1 (
         .fr(s2_Sb1[19:0]),
-        .p(Pb1)
-    );
+        .p(Pb1));
 
     //=============================================================
     //                    S2 -> S3 Register
@@ -751,7 +754,7 @@ module ATTN_PE (
     //=============================================================
     //                     S3 : Numerator
     //=============================================================
-    // weight (24 fraction bits) * V (22 fraction bits) -> 46 fraction bits, + 2^20, keep 25 (round)
+    // weight (23 fraction bits) * V (22 fraction bits) + 2^20, keep 24 fraction bits (round)
     assign wa0 = {1'b0, s3_wa0};
     assign wa1 = {1'b0, s3_wa1};
     assign wb0 = {1'b0, s3_wb0};
@@ -761,15 +764,15 @@ module ATTN_PE (
     assign vb0s = Vb0;
     assign vb1s = Vb1;
 
-    assign va0 = wa0 * va0s + wa1 * vb0s + 49'sd1048576;
-    assign va1 = wa0 * va1s + wa1 * vb1s + 49'sd1048576;
-    assign vb0 = wb0 * va0s + wb1 * vb0s + 49'sd1048576;
-    assign vb1 = wb0 * va1s + wb1 * vb1s + 49'sd1048576;
+    assign va0 = wa0 * va0s + wa1 * vb0s + 48'sd1048576;
+    assign va1 = wa0 * va1s + wa1 * vb1s + 48'sd1048576;
+    assign vb0 = wb0 * va0s + wb1 * vb0s + 48'sd1048576;
+    assign vb1 = wb0 * va1s + wb1 * vb1s + 48'sd1048576;
 
-    assign pva0 = {{2{va0[48]}}, va0[48:21]};
-    assign pva1 = {{2{va1[48]}}, va1[48:21]};
-    assign pvb0 = {{2{vb0[48]}}, vb0[48:21]};
-    assign pvb1 = {{2{vb1[48]}}, vb1[48:21]};
+    assign pva0 = {{2{va0[47]}}, va0[47:21]};
+    assign pva1 = {{2{va1[47]}}, va1[47:21]};
+    assign pvb0 = {{2{vb0[47]}}, vb0[47:21]};
+    assign pvb1 = {{2{vb1[47]}}, vb1[47:21]};
 
     // M = (M >>> dl) + pv ; first tile: M = pv
     // the shift has its own signed assignment: inside "... + pva0" (unsigned) the whole
@@ -809,10 +812,10 @@ module ATTN_PE (
     // |M| is taken here (S3 has slack) instead of in front of the divider
     assign snap_en = (s3_valid) && (s3_last);
 
-    assign Ma0_abs = (Ma0_nxt[29])? (29'd0 - Ma0_nxt[28:0]) : Ma0_nxt[28:0];
-    assign Ma1_abs = (Ma1_nxt[29])? (29'd0 - Ma1_nxt[28:0]) : Ma1_nxt[28:0];
-    assign Mb0_abs = (Mb0_nxt[29])? (29'd0 - Mb0_nxt[28:0]) : Mb0_nxt[28:0];
-    assign Mb1_abs = (Mb1_nxt[29])? (29'd0 - Mb1_nxt[28:0]) : Mb1_nxt[28:0];
+    assign Ma0_abs = (Ma0_nxt[28])? (28'd0 - Ma0_nxt[27:0]) : Ma0_nxt[27:0];
+    assign Ma1_abs = (Ma1_nxt[28])? (28'd0 - Ma1_nxt[27:0]) : Ma1_nxt[27:0];
+    assign Mb0_abs = (Mb0_nxt[28])? (28'd0 - Mb0_nxt[27:0]) : Mb0_nxt[27:0];
+    assign Mb1_abs = (Mb1_nxt[28])? (28'd0 - Mb1_nxt[27:0]) : Mb1_nxt[27:0];
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) div_step <= 4'd0;
@@ -822,10 +825,10 @@ module ATTN_PE (
 
     always @(posedge clk) begin
         if(snap_en) begin
-            M_snap0 <= {Ma0_nxt[29], Ma0_abs};
-            M_snap1 <= {Ma1_nxt[29], Ma1_abs};
-            M_snap2 <= {Mb0_nxt[29], Mb0_abs};
-            M_snap3 <= {Mb1_nxt[29], Mb1_abs};
+            M_snap0 <= {Ma0_nxt[28], Ma0_abs};
+            M_snap1 <= {Ma1_nxt[28], Ma1_abs};
+            M_snap2 <= {Mb0_nxt[28], Mb0_abs};
+            M_snap3 <= {Mb1_nxt[28], Mb1_abs};
             D_snap0 <= Da_nxt;
             D_snap1 <= Db_nxt;
         end
@@ -839,10 +842,13 @@ module ATTN_PE (
         end
     end
 
-    // H = M / D (sign-magnitude), quotient magnitude <= 2^22, saturated to 22 bits
-    ATTN_DIV_SRT #(.OVL(0)) u_div (
-        .num(M_snap0[28:0]),
-        .den(D_snap0),
+    // H = M / D (sign-magnitude): |H| = floor(|M| * 2^21 / D), saturated to 21 bits
+    assign div_num = M_snap0[27:0];
+    assign div_den = D_snap0;
+
+    ATTN_DIV_SRT #(.OVL(0), .QB(21), .N(28)) u_div (
+        .num(div_num),
+        .den(div_den),
         .quo(hmag)
     );
 
@@ -852,10 +858,10 @@ module ATTN_PE (
     // written by enable instead of shifting: token a is read by the output for 4 cycles
     // while the next Q_block may already start dividing, so its value must not move
     always @(posedge clk) begin
-        if(div_step[0]) H_a0 <= {M_snap0[29], hmag};
-        if(div_step[1]) H_a1 <= {M_snap0[29], hmag};
-        if(div_step[2]) H_b0 <= {M_snap0[29], hmag};
-        if(div_step[3]) H_b1 <= {M_snap0[29], hmag};
+        if(div_step[0]) H_a0 <= {M_snap0[28], hmag};
+        if(div_step[1]) H_a1 <= {M_snap0[28], hmag};
+        if(div_step[2]) H_b0 <= {M_snap0[28], hmag};
+        if(div_step[3]) H_b1 <= {M_snap0[28], hmag};
     end
 
     assign Ha0 = H_a0;
@@ -870,101 +876,93 @@ endmodule
 
 
 /******************************************************************************
-* ATTN_POW2 : p = 2^f, f = fr / 2^20 in [0, 1), p has 24 fraction bits ([2^24, 2^25))
-*   2^f = T[f_hi] * (1 + a1 x + a2 x^2), f_hi = top 6 bits, x = low 14 bits (< 2^-6)
-*   a1 / a2 fitted on [0, 2^-6) (absorbs the cubic term), +1 centers the truncation error
-*   error within about +-6 LSB of 2^-24 over all 2^20 inputs
+* Module: ATTN_POW2
+* 2^f by a 32-entry look-up table + quadratic polynomial
+* 2^f = T[f_hi] * (1 + a1 x + a2 x^2), f_hi = top 5 bits, x = low 15 bits
+*
+* Precision parameters:
+* HB:   table index 位數 (5)
+* T:    table 每項位數 (24, 22 位小數 + 補 0 對齊到 23 位)
+* x:    查表後剩下的低位 (15)
+* a1:   a1 位數 (13)
+* a2:   a2 位數 (5)
+* xq:   二次項用的截斷 x (10)
+* e:    2^x - 1 位數 (17, 22 位小數)
+* sT:   T * e 捨去 T 的低位數 (8)
+* bias: 抵銷截斷偏差的常數 (+15)
+* (lin_full / quad_full / te 的右移量由上面決定, 不是獨立參數)
 ******************************************************************************/
 module ATTN_POW2 (
     input wire [19:0] fr,
-    output wire [24:0] p
+    output wire [23:0] p
 );
 
-    reg [24:0] tab;
-    wire [13:0] x;
-    wire [32:0] lin_full;
-    wire [8:0] xq;
-    wire [17:0] xq2;
-    wire [23:0] quad_full;
-    wire [18:0] e;
-    wire [35:0] te;
+    reg [23:0] tab;
+    wire [14:0] x;
+    wire [27:0] lin_full;
+    wire [9:0] xq;
+    wire [19:0] xq2;
+    wire [24:0] quad_full;
+    wire [16:0] e;
+    wire [32:0] te;
 
-    assign x = fr[13:0];
-    assign lin_full = x * 19'd363406;           // a1 * 2^19
-    assign xq = x[13:5];
+    localparam [12:0] A1 = 13'd5678;
+    localparam [4:0]  A2 = 5'd31;
+    localparam [23:0] bias = 24'd15;
+
+
+    // =============================================================
+    //                      Quadratic polynomial
+    // =============================================================
+    assign x = fr[14:0];
+    assign lin_full = x * A1;
+    assign xq = x[14:5];
     assign xq2 = xq * xq;
-    assign quad_full = xq2 * 6'd62;             // a2 * 2^8
-    assign e = lin_full[32:14] + {8'd0, quad_full[23:13]};   // 2^x - 1, 25 fraction bits
-    assign te = tab[24:8] * e;
-    assign p = tab + {6'd0, te[35:17]} + 25'd1;
+    assign quad_full = xq2 * A2;
+    assign e = lin_full[27:11] + quad_full[24:15];
 
+    // T * (1 + a1x + a2x^2) = T + T * e
+    assign te = tab[23:8] * e;
+    assign p = tab + te[32:14] + bias;
+
+    // =============================================================
+    //                         Look up Table
+    // =============================================================
     always @(*) begin
-        case(fr[19:14])
-            6'd0: tab = 25'h1000000;
-            6'd1: tab = 25'h102C9A4;
-            6'd2: tab = 25'h1059B0D;
-            6'd3: tab = 25'h1087452;
-            6'd4: tab = 25'h10B5587;
-            6'd5: tab = 25'h10E3EC3;
-            6'd6: tab = 25'h111301D;
-            6'd7: tab = 25'h11429AB;
-            6'd8: tab = 25'h1172B84;
-            6'd9: tab = 25'h11A35BF;
-            6'd10: tab = 25'h11D4873;
-            6'd11: tab = 25'h12063B9;
-            6'd12: tab = 25'h12387A7;
-            6'd13: tab = 25'h126B456;
-            6'd14: tab = 25'h129E9DF;
-            6'd15: tab = 25'h12D285A;
-            6'd16: tab = 25'h1306FE1;
-            6'd17: tab = 25'h133C08B;
-            6'd18: tab = 25'h1371A73;
-            6'd19: tab = 25'h13A7DB3;
-            6'd20: tab = 25'h13DEA65;
-            6'd21: tab = 25'h14160A2;
-            6'd22: tab = 25'h144E086;
-            6'd23: tab = 25'h1486A2B;
-            6'd24: tab = 25'h14BFDAD;
-            6'd25: tab = 25'h14F9B27;
-            6'd26: tab = 25'h15342B5;
-            6'd27: tab = 25'h156F473;
-            6'd28: tab = 25'h15AB07E;
-            6'd29: tab = 25'h15E76F1;
-            6'd30: tab = 25'h16247EB;
-            6'd31: tab = 25'h1662388;
-            6'd32: tab = 25'h16A09E6;
-            6'd33: tab = 25'h16DFB24;
-            6'd34: tab = 25'h171F75F;
-            6'd35: tab = 25'h175FEB5;
-            6'd36: tab = 25'h17A1147;
-            6'd37: tab = 25'h17E2F33;
-            6'd38: tab = 25'h182589A;
-            6'd39: tab = 25'h1868D9A;
-            6'd40: tab = 25'h18ACE54;
-            6'd41: tab = 25'h18F1AEA;
-            6'd42: tab = 25'h193737B;
-            6'd43: tab = 25'h197D82A;
-            6'd44: tab = 25'h19C4918;
-            6'd45: tab = 25'h1A0C668;
-            6'd46: tab = 25'h1A5503B;
-            6'd47: tab = 25'h1A9E6B5;
-            6'd48: tab = 25'h1AE89FA;
-            6'd49: tab = 25'h1B33A2C;
-            6'd50: tab = 25'h1B7F76F;
-            6'd51: tab = 25'h1BCC1E9;
-            6'd52: tab = 25'h1C199BE;
-            6'd53: tab = 25'h1C67F13;
-            6'd54: tab = 25'h1CB720E;
-            6'd55: tab = 25'h1D072D5;
-            6'd56: tab = 25'h1D5818E;
-            6'd57: tab = 25'h1DA9E60;
-            6'd58: tab = 25'h1DFC973;
-            6'd59: tab = 25'h1E502EE;
-            6'd60: tab = 25'h1EA4AFA;
-            6'd61: tab = 25'h1EFA1BF;
-            6'd62: tab = 25'h1F50766;
-            6'd63: tab = 25'h1FA7C18;
-            default: tab = 25'h1000000;
+        case(fr[19:15])
+            5'd0: tab = 24'h800000;
+            5'd1: tab = 24'h82CD86;
+            5'd2: tab = 24'h85AAC4;
+            5'd3: tab = 24'h88980E;
+            5'd4: tab = 24'h8B95C2;
+            5'd5: tab = 24'h8EA43A;
+            5'd6: tab = 24'h91C3D4;
+            5'd7: tab = 24'h94F4F0;
+            5'd8: tab = 24'h9837F0;
+            5'd9: tab = 24'h9B8D3A;
+            5'd10: tab = 24'h9EF532;
+            5'd11: tab = 24'hA27044;
+            5'd12: tab = 24'hA5FED6;
+            5'd13: tab = 24'hA9A15A;
+            5'd14: tab = 24'hAD583E;
+            5'd15: tab = 24'hB123F6;
+            5'd16: tab = 24'hB504F4;
+            5'd17: tab = 24'hB8FBB0;
+            5'd18: tab = 24'hBD08A4;
+            5'd19: tab = 24'hC12C4C;
+            5'd20: tab = 24'hC5672A;
+            5'd21: tab = 24'hC9B9BE;
+            5'd22: tab = 24'hCE248C;
+            5'd23: tab = 24'hD2A81E;
+            5'd24: tab = 24'hD744FC;
+            5'd25: tab = 24'hDBFBB8;
+            5'd26: tab = 24'hE0CCDE;
+            5'd27: tab = 24'hE5B906;
+            5'd28: tab = 24'hEAC0C6;
+            5'd29: tab = 24'hEFE4BA;
+            5'd30: tab = 24'hF5257E;
+            5'd31: tab = 24'hFA83B2;
+            default: tab = 24'h800000;
         endcase
     end
 
@@ -972,82 +970,85 @@ endmodule
 
 
 /******************************************************************************
-* ATTN_DIV_SRT : quo = floor((num << 22) / den), saturated to 22 bits (num >= den)
+* ATTN_DIV_SRT : quo = floor((num << QB) / den), saturated to QB bits (num >= den)
 *   radix-2 SRT, partial remainder in carry-save form, digit q in {-1, 0, +1}
-*   den in [2^23, 2^29) is normalized to bit 28 (shift 0 ~ 5, num shifted the same)
+*   den has its leading one in bit N - 6 ~ N - 1 and is normalized to bit N - 1
+*   (shift 0 ~ 5, num shifted the same)
 *   q from a 4-bit estimate of 2W: >= 0 -> +1, -1/2 -> 0, <= -1 -> -1 (|W| < den kept)
-*   floor: quo = P - N - (final remainder < 0)
+*   floor: quo = P - NQ - (final remainder < 0)
 *   OVL = 1: the digit of step g+1 is precomputed for the 3 possible digits of step g
 *            and picked by a mux (the digit chain only sees one mux per step)
 ******************************************************************************/
 module ATTN_DIV_SRT #(
-    parameter OVL = 1
+    parameter OVL = 1,
+    parameter QB = 22,
+    parameter N = 29
 )(
-    input wire [28:0] num,
-    input wire [28:0] den,
-    output wire [21:0] quo
+    input wire [N-1:0] num,
+    input wire [N-1:0] den,
+    output wire [QB-1:0] quo
 );
 
     wire sat;
-    wire [5:0] lead;                // one-hot: den[28 - k] is the leading one
-    wire [28:0] dn, nn;             // normalized den / num
-    wire [31:0] dpos, dneg;         // + dn and ~dn (-dn = ~dn + 1, the +1 enters the carry LSB)
-    wire [30:0] ws [0:22];          // partial remainder W_g = ws + wc (mod 2^31)
-    wire [30:0] wc [0:22];
-    wire [21:0] qp, qz, qn;         // one-hot digit of step g
-    wire [21:0] P, N;
-    wire [30:0] wsum;
+    wire [5:0] lead;                // one-hot: den[N - 1 - k] is the leading one
+    wire [N-1:0] dn, nn;            // normalized den / num
+    wire [N+2:0] dpos, dneg;        // + dn and ~dn (-dn = ~dn + 1, the +1 enters the carry LSB)
+    wire [N+1:0] ws [0:QB];         // partial remainder W_g = ws + wc (mod 2^(N + 2))
+    wire [N+1:0] wc [0:QB];
+    wire [QB-1:0] qp, qz, qn;       // one-hot digit of step g
+    wire [QB-1:0] P, NQ;
+    wire [N+1:0] wsum;
     genvar g;
 
     assign sat = (num >= den);
 
-    assign lead[0] = den[28];
-    assign lead[1] = (den[28] == 1'b0) && den[27];
-    assign lead[2] = (den[28:27] == 2'd0) && den[26];
-    assign lead[3] = (den[28:26] == 3'd0) && den[25];
-    assign lead[4] = (den[28:25] == 4'd0) && den[24];
-    assign lead[5] = (den[28:24] == 5'd0);
+    assign lead[0] = den[N-1];
+    assign lead[1] = (den[N-1] == 1'b0) && den[N-2];
+    assign lead[2] = (den[N-1:N-2] == 2'd0) && den[N-3];
+    assign lead[3] = (den[N-1:N-3] == 3'd0) && den[N-4];
+    assign lead[4] = (den[N-1:N-4] == 4'd0) && den[N-5];
+    assign lead[5] = (den[N-1:N-5] == 5'd0);
 
-    assign dn = ({29{lead[0]}} & den) | ({29{lead[1]}} & {den[27:0], 1'd0}) | ({29{lead[2]}} & {den[26:0], 2'd0})
-              | ({29{lead[3]}} & {den[25:0], 3'd0}) | ({29{lead[4]}} & {den[24:0], 4'd0}) | ({29{lead[5]}} & {den[23:0], 5'd0});
-    assign nn = ({29{lead[0]}} & num) | ({29{lead[1]}} & {num[27:0], 1'd0}) | ({29{lead[2]}} & {num[26:0], 2'd0})
-              | ({29{lead[3]}} & {num[25:0], 3'd0}) | ({29{lead[4]}} & {num[24:0], 4'd0}) | ({29{lead[5]}} & {num[23:0], 5'd0});
+    assign dn = ({N{lead[0]}} & den) | ({N{lead[1]}} & {den[N-2:0], 1'd0}) | ({N{lead[2]}} & {den[N-3:0], 2'd0})
+              | ({N{lead[3]}} & {den[N-4:0], 3'd0}) | ({N{lead[4]}} & {den[N-5:0], 4'd0}) | ({N{lead[5]}} & {den[N-6:0], 5'd0});
+    assign nn = ({N{lead[0]}} & num) | ({N{lead[1]}} & {num[N-2:0], 1'd0}) | ({N{lead[2]}} & {num[N-3:0], 2'd0})
+              | ({N{lead[3]}} & {num[N-4:0], 3'd0}) | ({N{lead[4]}} & {num[N-5:0], 4'd0}) | ({N{lead[5]}} & {num[N-6:0], 5'd0});
 
     assign dpos = {3'b000, dn};
     assign dneg = {3'b111, ~dn};
 
     // W_0 = nn >= 0, so the first digit is +1
     assign ws[0] = {2'b00, nn};
-    assign wc[0] = 31'd0;
+    assign wc[0] = {(N+2){1'b0}};
     assign qp[0] = 1'b1;
     assign qz[0] = 1'b0;
     assign qn[0] = 1'b0;
 
     generate
-        for(g = 0; g < 22; g = g + 1) begin : SRT_STEP
-            wire [31:0] ys, yc, t, sm, mj;
+        for(g = 0; g < QB; g = g + 1) begin : SRT_STEP
+            wire [N+2:0] ys, yc, t, sm, mj;
             assign ys = {ws[g], 1'b0};
             assign yc = {wc[g], 1'b0};
-            assign t = ({32{qp[g]}} & dneg) | ({32{qn[g]}} & dpos);
+            assign t = ({(N+3){qp[g]}} & dneg) | ({(N+3){qn[g]}} & dpos);
             assign sm = ys ^ yc ^ t;
             assign mj = (ys & yc) | (ys & t) | (yc & t);
-            assign ws[g+1] = sm[30:0];
-            assign wc[g+1] = {mj[29:0], qp[g]};
-            assign P[21-g] = qp[g];
-            assign N[21-g] = qn[g];
+            assign ws[g+1] = sm[N+1:0];
+            assign wc[g+1] = {mj[N:0], qp[g]};
+            assign P[QB-1-g] = qp[g];
+            assign NQ[QB-1-g] = qn[g];
 
-            if(g < 21) begin : SEL
+            if(g < QB - 1) begin : SEL
                 if(OVL) begin : OV
                     // next estimate for each possible digit of this step: 4-bit sum of
-                    // (ys ^ yc ^ t)[30:27] and maj(ys, yc, t)[29:26]
+                    // (ys ^ yc ^ t)[N+1:N-2] and maj(ys, yc, t)[N:N-3]
                     wire [3:0] sp, sz, sn, cp, cz, cn;
                     wire [3:0] ep, ez, en;
-                    assign sp = ys[30:27] ^ yc[30:27] ^ dneg[30:27];
-                    assign cp = (ys[29:26] & yc[29:26]) | (ys[29:26] & dneg[29:26]) | (yc[29:26] & dneg[29:26]);
-                    assign sz = ys[30:27] ^ yc[30:27];
-                    assign cz = ys[29:26] & yc[29:26];
-                    assign sn = ys[30:27] ^ yc[30:27] ^ dpos[30:27];
-                    assign cn = (ys[29:26] & yc[29:26]) | (ys[29:26] & dpos[29:26]) | (yc[29:26] & dpos[29:26]);
+                    assign sp = ys[N+1:N-2] ^ yc[N+1:N-2] ^ dneg[N+1:N-2];
+                    assign cp = (ys[N:N-3] & yc[N:N-3]) | (ys[N:N-3] & dneg[N:N-3]) | (yc[N:N-3] & dneg[N:N-3]);
+                    assign sz = ys[N+1:N-2] ^ yc[N+1:N-2];
+                    assign cz = ys[N:N-3] & yc[N:N-3];
+                    assign sn = ys[N+1:N-2] ^ yc[N+1:N-2] ^ dpos[N+1:N-2];
+                    assign cn = (ys[N:N-3] & yc[N:N-3]) | (ys[N:N-3] & dpos[N:N-3]) | (yc[N:N-3] & dpos[N:N-3]);
                     assign ep = sp + cp;
                     assign ez = sz + cz;
                     assign en = sn + cn;
@@ -1058,7 +1059,7 @@ module ATTN_DIV_SRT #(
                 end
                 else begin : BS
                     wire [3:0] e;
-                    assign e = ws[g+1][30:27] + wc[g+1][30:27];
+                    assign e = ws[g+1][N+1:N-2] + wc[g+1][N+1:N-2];
                     assign qp[g+1] = !e[3];
                     assign qz[g+1] = (e == 4'hF);
                     assign qn[g+1] = e[3] && (e != 4'hF);
@@ -1068,7 +1069,7 @@ module ATTN_DIV_SRT #(
     endgenerate
 
     // floor: one less when the final remainder is negative
-    assign wsum = ws[22] + wc[22];
-    assign quo = (sat)? 22'h3FFFFF : (P + ~N + {21'd0, !wsum[30]});
+    assign wsum = ws[QB] + wc[QB];
+    assign quo = (sat)? {QB{1'b1}} : (P + ~NQ + {{(QB-1){1'b0}}, !wsum[N+1]});
 
 endmodule
