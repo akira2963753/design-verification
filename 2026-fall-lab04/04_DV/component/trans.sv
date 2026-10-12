@@ -10,7 +10,7 @@
 
 import dv_pkg::*;
 
-class trans;
+class txn;
 
     rand fp32_t q [64];
     rand fp32_t k [64];
