@@ -8,6 +8,8 @@
 *
 ******************************************************************************/
 
+import dv_pkg::*;
+
 class generator;
 
     //=============================================================
@@ -18,8 +20,8 @@ class generator;
     mailbox #(txn) gen2drv;
 
     function new(
-        input uint pat_num,
-        input mailbox #(txn) gen2drv
+        uint pat_num,
+        mailbox #(txn) gen2drv
     );
         this.pat_num = pat_num;
         this.gen2drv = gen2drv;

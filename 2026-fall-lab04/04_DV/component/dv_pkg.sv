@@ -11,6 +11,22 @@
 package dv_pkg;
 
     //=============================================================
+    //                          TYPE DEFINE
+    //=============================================================
+    
+    typedef struct packed {
+        bit sign;
+        bit [7:0] exp;
+        bit [22:0] frac;
+    } fp32_t;
+
+    typedef int unsigned uint;
+
+    // Matrix layout of PATTERN, row = token, column = dim
+    typedef real mat16x4_t [16][4];
+    typedef real mat4x4_t [4][4];
+
+    //=============================================================
     //                          PARAMETER
     //=============================================================
     
@@ -22,18 +38,9 @@ package dv_pkg;
 
     localparam bit [7:0] EXP_MIN = 8'd103;
 
-    //=============================================================
-    //                          TYPE DEFINE
-    //=============================================================
-    
-    typedef struct packed {
-        bit sign;
-        bit [7:0] exp;
-        bit [22:0] frac;
-    } fp32_t;
+    localparam uint TIMEOUT = 1000;
 
-    type unsigned int uint;
-
+    localparam real ERR_TOL = 1e-6;
 
     //=============================================================
     //                            FUNCTION
@@ -41,6 +48,20 @@ package dv_pkg;
 
     function automatic shortreal fp2r(fp32_t x);
         return $bitstoshortreal(x);
+    endfunction
+
+    // in_valid cycle i carries token i / 4, dim i % 4, same as the PATTERN driver
+    function automatic mat16x4_t pack_16x4(logic [31:0] a[64]);
+        mat16x4_t m;
+        for(int i = 0; i < 64; i++) m[i/4][i%4] = $bitstoshortreal(a[i]);
+        return m;
+    endfunction
+
+    // out_weight of the first 16 in_valid cycles
+    function automatic mat4x4_t pack_4x4(logic [31:0] a[16]);
+        mat4x4_t m;
+        for(int i = 0; i < 16; i++) m[i/4][i%4] = $bitstoshortreal(a[i]);
+        return m;
     endfunction
 
 endpackage

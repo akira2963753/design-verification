@@ -3,7 +3,7 @@
 *
 * File Name:    trans.sv
 * Project:      2026 FALL NYCU IC LAB, LAB04
-* Module:       transcation
+* Module:       transaction
 * Author:       Marco <harry2963753@gmail.com>
 *
 ******************************************************************************/
@@ -73,4 +73,18 @@ class txn;
                 mat2str("W", w, 4)};
     endfunction
 
+endclass
+
+//=============================================================
+//                    MONITOR TRANSACTION
+//=============================================================
+
+// One mon_txn per pattern, the driver already checks 64 in_valid / out_valid cycles
+class mon_txn;
+    logic [31:0] q[64];     // one word per in_valid cycle
+    logic [31:0] k[64];
+    logic [31:0] v[64];
+    logic [31:0] w[16];     // out_weight of the first 16 in_valid cycles only
+    logic [31:0] out[64];   // one word per out_valid cycle
+    uint lat;               // negedges from in_valid pulled down to the 1st out_valid, same as PATTERN
 endclass
