@@ -51,6 +51,26 @@ class txn;
     }
 
     //=============================================================
+    //                         CREATE & COPY
+    //=============================================================
+
+    // Every subclass overrides create() to build its own type, like the UVM factory
+    virtual function txn create();
+        txn t = new();
+        return t;
+    endfunction
+
+    // create() picks the real type, so a copy of a subclass keeps its constraints
+    function txn copy();
+        txn t = create();
+        t.q = q;
+        t.k = k;
+        t.v = v;
+        t.w = w;
+        return t;
+    endfunction
+
+    //=============================================================
     //                            PRINT
     //=============================================================
 
@@ -71,6 +91,24 @@ class txn;
                 mat2str("K", k, 16),
                 mat2str("V", v, 16),
                 mat2str("W", w, 4)};
+    endfunction
+
+endclass
+
+//=============================================================
+//                    DIRECTED TRANSACTION
+//=============================================================
+
+// Every K is +/- 128.0 ~ 255.0, the largest attention scores
+class k_max_txn extends txn;
+
+    constraint c_k_max {
+        foreach(k[i]) k[i].exp == EXP_255;
+    }
+
+    virtual function txn create();
+        k_max_txn t = new();
+        return t;
     endfunction
 
 endclass

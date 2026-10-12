@@ -18,6 +18,7 @@ class generator;
 
     uint pat_num;
     mailbox #(txn) gen2drv;
+    txn blueprint;
 
     function new(
         uint pat_num,
@@ -25,6 +26,7 @@ class generator;
     );
         this.pat_num = pat_num;
         this.gen2drv = gen2drv;
+        this.blueprint = new();
     endfunction
 
 
@@ -35,7 +37,8 @@ class generator;
     task run();
         txn t;
         for(int i = 0; i < pat_num; i++) begin
-            t = new();
+            // A new object every pattern, the mailbox keeps handles, not values
+            t = blueprint.copy();
             if(!t.randomize()) begin
                 $display("=============================================================");
                 $display("          [GEN] Randomize failed at pattern %0d", i);
