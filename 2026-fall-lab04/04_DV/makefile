@@ -7,7 +7,7 @@
 # Single run (compile + run with -R):
 #   make vcs_rtl                          # RTL, debug, seed 7
 #   make vcs_rtl seed=3 define="A B=1"    # extra +define+ macros, space separated
-#   make vcs_rtl plusarg="+TEST=k_max"     # runtime plusargs: +TEST=<rand | k_max>, +PAT_NUM=<n>
+#   make vcs_rtl plusarg="+TEST=file"      # runtime plusargs: +TEST=<rand | file>, +IN_FILE=<path>, +PAT_NUM=<n>
 #   make vcs_rtl_cv seed=3                # with coverage, one test per seed in ${cm_dir}
 #   make vcs_gate / vcs_gate_cv / vcs_gate_fast
 #

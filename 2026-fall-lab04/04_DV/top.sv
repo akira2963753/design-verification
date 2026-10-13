@@ -15,7 +15,7 @@ module top;
     //                           PARAMETER
     //=============================================================
 
-    localparam realtime CLK_PERIOD = 50.0;     // same as 02_SYN/syn.tcl and TA PATTERN
+    localparam realtime CLK_PERIOD = 50.0; 
 
     //=============================================================
     //                       CLOCK & INTERFACE
@@ -25,7 +25,6 @@ module top;
 
     vif tb_if(.clk(clk));
 
-    // clk stays low until driver.reset() sets clk_en, a synchronous reset never sees an edge
     initial clk = 1'b0;
     always #(CLK_PERIOD / 2.0) clk = (tb_if.clk_en)? ~clk : 1'b0;
 
@@ -55,7 +54,7 @@ module top;
     `else
         initial begin
             $display("=============================================================");
-            $display("               [INFO] BEHAVIORAL SIMULATION START  ");
+            $display("               [INFO] BEHAVIORAL SIMULATION START            ");
             $display("               [INFO] Clock period = %0.1f ns", CLK_PERIOD);
             $display("=============================================================");
         end

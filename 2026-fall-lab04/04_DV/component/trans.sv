@@ -69,45 +69,39 @@ class txn;
         t.w = w;
         return t;
     endfunction
-
-    //=============================================================
-    //                            PRINT
-    //=============================================================
-
-    function string mat2str(string name, fp32_t a[], int rows);
-        string s;
-        s = $sformatf("=========================== %s (%0dx4) ==================================\n", name, rows);
-
-        for(int t = 0; t < rows; t++) begin
-            s = {s, $sformatf("[%2d] ", t)};
-            for(int d = 0; d < 4; d++) s = {s, $sformatf("%h(%11.4e) ", a[t*4 + d], fp2r(a[t*4 + d]))};
-            s = {s, "\n"};
-        end
-        return s;
-    endfunction
-
-    function string convert2string();
-        return {mat2str("Q", q, 16),
-                mat2str("K", k, 16),
-                mat2str("V", v, 16),
-                mat2str("W", w, 4)};
-    endfunction
-
+    
 endclass
 
 //=============================================================
 //                    DIRECTED TRANSACTION
 //=============================================================
 
-// Every K is +/- 128.0 ~ 255.0, the largest attention scores
-class k_max_txn extends txn;
+// Reads one pattern per randomize() from the TA input.txt format, the test opens the file
+class file_txn extends txn;
+    static int fd;      // shared by every copy, each pattern continues from the last one
 
-    constraint c_k_max {
-        foreach(k[i]) k[i].exp == EXP_255;
-    }
+    function new();
+        rand_mode(0);           // close the randomization
+        constraint_mode(0);     // close the constraint checks, file data may be outside them
+    endfunction
+
+    function void post_randomize();
+        int n;
+        for(int i = 0; i < 64; i++) begin
+            if(i < 16) n = $fscanf(fd, "%h %h %h %h", q[i], k[i], v[i], w[i]);
+            else n = $fscanf(fd, "%h %h %h", q[i], k[i], v[i]);
+
+            if(n != ((i < 16)? 4 : 3)) begin
+                $display("=============================================================");
+                $display("      [GEN] Input file format mismatch / EOF at line %0d", i);
+                $display("=============================================================");
+                $fatal(1);
+            end
+        end
+    endfunction
 
     virtual function txn create();
-        k_max_txn t = new();
+        file_txn t = new();
         return t;
     endfunction
 
@@ -117,12 +111,11 @@ endclass
 //                    MONITOR TRANSACTION
 //=============================================================
 
-// One mon_txn per pattern, the driver already checks 64 in_valid / out_valid cycles
 class mon_txn;
-    logic [31:0] q[64];     // one word per in_valid cycle
+    logic [31:0] q[64];     
     logic [31:0] k[64];
     logic [31:0] v[64];
-    logic [31:0] w[16];     // out_weight of the first 16 in_valid cycles only
-    logic [31:0] out[64];   // one word per out_valid cycle
-    uint lat;               // negedges from in_valid pulled down to the 1st out_valid, same as PATTERN
+    logic [31:0] w[16];    
+    logic [31:0] out[64];   
+    uint lat;
 endclass

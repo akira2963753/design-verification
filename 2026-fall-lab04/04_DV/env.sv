@@ -72,8 +72,6 @@ class env;
     //                           MAIN FLOW
     //=============================================================
 
-    // The monitor puts the last pattern at the negedge the driver sees out_valid low,
-    // the driver still waits 1 ~ 3 negedges after it, so the scoreboard is done when drv.run() returns
     task run();
         drv.reset();
         fork

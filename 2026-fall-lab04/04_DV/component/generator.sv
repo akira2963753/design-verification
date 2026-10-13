@@ -45,7 +45,6 @@ class generator;
                 $display("=============================================================");
                 $fatal(1);
             end
-            if(i == 0) $display("%s", t.convert2string());
             gen2drv.put(t);
         end
     endtask
