@@ -7,6 +7,7 @@
 # Single run (compile + run with -R):
 #   make vcs_rtl                          # RTL, debug, seed 7
 #   make vcs_rtl seed=3 define="A B=1"    # extra +define+ macros, space separated
+#   make vcs_rtl plusarg="+TEST=k_max"     # runtime plusargs: +TEST=<rand | k_max>, +PAT_NUM=<n>
 #   make vcs_rtl_cv seed=3                # with coverage, one test per seed in ${cm_dir}
 #   make vcs_gate / vcs_gate_cv / vcs_gate_fast
 #
@@ -37,6 +38,7 @@ cm_dir      = coverage.vdb
 merge_dir   = merged.vdb
 seed        = 7
 define      =
+plusarg     =
 cov         = 0
 TIMESCALE   = -timescale=1ns/1ps
 neg_file    = /usr/cad/CBDK_TSMC90GUTM_Arm_f1.0/CIC/Verilog/tsmc090.v
@@ -71,7 +73,8 @@ VCS_COMP = vcs ${TIMESCALE} \
 VCS_BASE = ${VCS_COMP} \
 	-R \
 	-o ${simv} \
-	+ntb_random_seed=${seed}
+	+ntb_random_seed=${seed} \
+	${plusarg}
 
 VCS_CM = ${CM_COMP} \
 	-cm_name seed_${seed}${tag}
@@ -144,7 +147,7 @@ regr_comp:
 	2>&1 | tee ${log_dir}/regr_comp${tag}.log
 
 regr_sim:
-	${RUN} ./${regr_simv} +ntb_random_seed=${seed} ${REGR_CM_SIM} \
+	${RUN} ./${regr_simv} +ntb_random_seed=${seed} ${plusarg} ${REGR_CM_SIM} \
 	2>&1 | tee ${log_dir}/regr_sim${tag}_seed_${seed}.log
 
 #=============================================================================

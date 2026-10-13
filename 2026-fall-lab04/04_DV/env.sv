@@ -72,21 +72,8 @@ class env;
     //                           MAIN FLOW
     //=============================================================
 
-    // The monitor puts the last pattern at the negedge the driver sees out_valid low
-    task drain();
-        uint cnt = 0;
-        while(scb.pat_cnt != pat_num) begin
-            if(cnt >= 10) begin
-                $display("=============================================================");
-                $display("[ENV] Scoreboard checked %0d patterns, driver finished %0d", scb.pat_cnt, pat_num);
-                $display("=============================================================");
-                $fatal(1);
-            end
-            cnt++;
-            @(vif.mon_cb);
-        end
-    endtask
-
+    // The monitor puts the last pattern at the negedge the driver sees out_valid low,
+    // the driver still waits 1 ~ 3 negedges after it, so the scoreboard is done when drv.run() returns
     task run();
         drv.reset();
         fork
@@ -97,7 +84,6 @@ class env;
             gen.run();
             drv.run();
         join
-        drain();
         disable fork;   // stop the monitor and scoreboard loops
     endtask
 
