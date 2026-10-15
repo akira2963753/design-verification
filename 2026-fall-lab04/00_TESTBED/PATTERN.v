@@ -34,11 +34,6 @@ module PATTERN (
     //                      Parameter & Integer
     //=============================================================
     parameter CYCLE = `CYCLE_TIME;
-    // parameter inst_sig_width = 23;
-    // parameter inst_exp_width = 8;
-    // parameter inst_ieee_compliance = 0;
-    // parameter inst_arch_type = 0;
-    // parameter inst_arch = 0;
     
     localparam real ERR_TOL = 1e-6;                   
     localparam int  MAX_LAT = 1000;                          

@@ -1,0 +1,198 @@
+Example trace : the first three blocks of an image (blocks 0, 1, 2), encoded as in the handout.
+previous_dc = 0 before block 0, as for every image.
+Tables D and Q are printed like Fig 4 : row = v (vertical frequency), column = u.
+
+==============================================================================
+EXAMPLE BLOCK 0
+==============================================================================
+  Example block 0 : the first block of an image, so previous_dc = 0.
+  Every pixel is 0x58 = 88, so P' = -40 everywhere, D(0,0) = 8 x (-40) = -320,
+  Q(0,0) = round_s(-320, 4) = -20 and all AC coefficients are 0.
+  pixels P(x,y) in hex  (row = y, column = x)
+    58 58 58 58 58 58 58 58
+    58 58 58 58 58 58 58 58
+    58 58 58 58 58 58 58 58
+    58 58 58 58 58 58 58 58
+    58 58 58 58 58 58 58 58
+    58 58 58 58 58 58 58 58
+    58 58 58 58 58 58 58 58
+    58 58 58 58 58 58 58 58
+  D(u,v) = round_s(A(u,v), 18)  (row = v, column = u)
+        u=0    u=1    u=2    u=3    u=4    u=5    u=6    u=7
+  v=0    -320      0      0      0      0      0      0      0
+  v=1       0      0      0      0      0      0      0      0
+  v=2       0      0      0      0      0      0      0      0
+  v=3       0      0      0      0      0      0      0      0
+  v=4       0      0      0      0      0      0      0      0
+  v=5       0      0      0      0      0      0      0      0
+  v=6       0      0      0      0      0      0      0      0
+  v=7       0      0      0      0      0      0      0      0
+  Q(u,v) = round_s(D(u,v), S(u,v))  (row = v, column = u)
+        u=0    u=1    u=2    u=3    u=4    u=5    u=6    u=7
+  v=0     -20      0      0      0      0      0      0      0
+  v=1       0      0      0      0      0      0      0      0
+  v=2       0      0      0      0      0      0      0      0
+  v=3       0      0      0      0      0      0      0      0
+  v=4       0      0      0      0      0      0      0      0
+  v=5       0      0      0      0      0      0      0      0
+  v=6       0      0      0      0      0      0      0      0
+  v=7       0      0      0      0      0      0      0      0
+  zigzag sequence Z[0..63]
+    Z[ 0..15]  -20    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
+    Z[16..31]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
+    Z[32..47]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
+    Z[48..63]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
+  encoded fields (Huffman code, then amplitude bits, MSB first)
+    DC  delta_dc = -20 - (0) = -20, SIZE 5, DC_LUT[5]        110 01011
+    EOB  Z[1]..Z[63] are zero, AC_LUT[8'h00]                 1010
+  bits of this block : 12, bits so far : 12
+  complete bytes so far : CB
+  bits waiting for the next block : 1010
+
+==============================================================================
+EXAMPLE BLOCK 1
+==============================================================================
+  Example block 1 : exactly the worked example of Table 8 / Fig 6.
+  previous_dc = -20 (Z[0] of example block 0), and the block gives
+  Z[0] = -15, Z[3] = +3, Z[22] = -2, all other Z are 0.
+  pixels P(x,y) in hex  (row = y, column = x)
+    61 62 65 68 6C 6F 71 73
+    75 72 6E 68 62 5D 58 56
+    5C 5C 5D 5E 5F 60 61 62
+    4D 4F 53 58 5D 62 65 67
+    67 65 62 5D 58 53 4F 4D
+    62 61 60 5F 5E 5D 5C 5C
+    56 58 5D 62 68 6E 72 75
+    73 71 6F 6C 68 65 62 61
+  D(u,v) = round_s(A(u,v), 18)  (row = v, column = u)
+        u=0    u=1    u=2    u=3    u=4    u=5    u=6    u=7
+  v=0    -240      0      0      0      0      0      1      0
+  v=1       0      0      0      0      0      0      0      0
+  v=2      48      0      0      0      0      0      0      0
+  v=3       0     -1      0      0      0      0      0      0
+  v=4       0      0     -1      0      0      0      0      0
+  v=5       0    -64      0      0      0      0      0      0
+  v=6       0      0      0      0      0      0      0      0
+  v=7       0      0      0      0      0      0      0      0
+  Q(u,v) = round_s(D(u,v), S(u,v))  (row = v, column = u)
+        u=0    u=1    u=2    u=3    u=4    u=5    u=6    u=7
+  v=0     -15      0      0      0      0      0      0      0
+  v=1       0      0      0      0      0      0      0      0
+  v=2       3      0      0      0      0      0      0      0
+  v=3       0      0      0      0      0      0      0      0
+  v=4       0      0      0      0      0      0      0      0
+  v=5       0     -2      0      0      0      0      0      0
+  v=6       0      0      0      0      0      0      0      0
+  v=7       0      0      0      0      0      0      0      0
+  zigzag sequence Z[0..63]
+    Z[ 0..15]  -15    0    0    3    0    0    0    0    0    0    0    0    0    0    0    0
+    Z[16..31]    0    0    0    0    0    0   -2    0    0    0    0    0    0    0    0    0
+    Z[32..47]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
+    Z[48..63]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
+  encoded fields (Huffman code, then amplitude bits, MSB first)
+    DC  delta_dc = -15 - (-20) = 5, SIZE 3, DC_LUT[3]        100 101
+    AC  Z[3] = 3, RUN 2, SIZE 2, AC_LUT[8'h22]               11111001 11
+    ZRL  16 zeros, AC_LUT[8'hF0]                             11111111001
+    AC  Z[22] = -2, RUN 2, SIZE 2, AC_LUT[8'h22]             11111001 01
+    EOB  Z[23]..Z[63] are zero, AC_LUT[8'h00]                1010
+  bits of this block : 41, bits so far : 53
+  complete bytes so far : CB A9 7E 7F F3 F2
+  bits waiting for the next block : 11010
+  -> the same 41 bits as Fig 6 : 100 101 11111001 11 11111111001 11111001 01 1010
+     (the bytes differ from Fig 6 because the 12 bits of block 0 come first)
+
+==============================================================================
+EXAMPLE BLOCK 2
+==============================================================================
+  Example block 2 : a busy block (block 17 of PATTERN 32 in input.txt).
+  pixels P(x,y) in hex  (row = y, column = x)
+    46 F4 D3 2A 17 E6 DE BF
+    7C 61 68 C1 47 EA 4A 25
+    DF A9 C1 FD 97 99 92 D8
+    5B 13 F3 75 72 65 0A AE
+    52 9B 19 12 6A B1 55 84
+    96 BB 8F F3 37 07 70 7E
+    B4 66 27 28 71 21 8A DE
+    2E 38 3A CA CC B5 6A 4D
+  D(u,v) = round_s(A(u,v), 18)  (row = v, column = u)
+        u=0    u=1    u=2    u=3    u=4    u=5    u=6    u=7
+  v=0      -6    -17     18    -45      4     -8     48    -82
+  v=1     113     24     12    -23   -158     13     99    -50
+  v=2      35    -65    -18     62    -87     22    -52    -31
+  v=3     -50     19    152    -33   -125    -37    -79    -16
+  v=4     -64   -102    -50     23   -112    -96     65     31
+  v=5      48    -15    139   -125     23    -14     42    117
+  v=6     154     52    -29    -99     -8     48    -65    -27
+  v=7      59    -69    129     89    -23    -78    -56      5
+  Q(u,v) = round_s(D(u,v), S(u,v))  (row = v, column = u)
+        u=0    u=1    u=2    u=3    u=4    u=5    u=6    u=7
+  v=0       0     -2      2     -3      0      0      1     -1
+  v=1       7      2      1     -1     -5      0      2     -1
+  v=2       2     -4     -1      2     -3      0     -1      0
+  v=3      -3      1     10     -1     -2     -1     -1      0
+  v=4      -4     -6     -2      0     -2     -1      1      0
+  v=5       2      0      2     -2      0      0      0      1
+  v=6       2      1      0     -2      0      0     -1      0
+  v=7       1     -1      1      1      0     -1      0      0
+  zigzag sequence Z[0..63]
+    Z[ 0..15]    0   -2    7    2    2    2   -3    1   -4   -3   -4    1   -1   -1    0    0
+    Z[16..31]   -5    2   10   -6    2    2    0   -2   -1   -3    0    1   -1    2    0   -2
+    Z[32..47]    0    2    1    1   -1    0   -2   -2   -1   -1   -1    0   -1   -1    0   -2
+    Z[48..63]    1    1    0    0    1    0    0    0    0    0   -1   -1    1    0    0    0
+  encoded fields (Huffman code, then amplitude bits, MSB first)
+    DC  delta_dc = 0 - (-15) = 15, SIZE 4, DC_LUT[4]         101 1111
+    AC  Z[1] = -2, RUN 0, SIZE 2, AC_LUT[8'h02]              01 01
+    AC  Z[2] = 7, RUN 0, SIZE 3, AC_LUT[8'h03]               100 111
+    AC  Z[3] = 2, RUN 0, SIZE 2, AC_LUT[8'h02]               01 10
+    AC  Z[4] = 2, RUN 0, SIZE 2, AC_LUT[8'h02]               01 10
+    AC  Z[5] = 2, RUN 0, SIZE 2, AC_LUT[8'h02]               01 10
+    AC  Z[6] = -3, RUN 0, SIZE 2, AC_LUT[8'h02]              01 00
+    AC  Z[7] = 1, RUN 0, SIZE 1, AC_LUT[8'h01]               00 1
+    AC  Z[8] = -4, RUN 0, SIZE 3, AC_LUT[8'h03]              100 011
+    AC  Z[9] = -3, RUN 0, SIZE 2, AC_LUT[8'h02]              01 00
+    AC  Z[10] = -4, RUN 0, SIZE 3, AC_LUT[8'h03]             100 011
+    AC  Z[11] = 1, RUN 0, SIZE 1, AC_LUT[8'h01]              00 1
+    AC  Z[12] = -1, RUN 0, SIZE 1, AC_LUT[8'h01]             00 0
+    AC  Z[13] = -1, RUN 0, SIZE 1, AC_LUT[8'h01]             00 0
+    AC  Z[16] = -5, RUN 2, SIZE 3, AC_LUT[8'h23]             1111110111 010
+    AC  Z[17] = 2, RUN 0, SIZE 2, AC_LUT[8'h02]              01 10
+    AC  Z[18] = 10, RUN 0, SIZE 4, AC_LUT[8'h04]             1011 1010
+    AC  Z[19] = -6, RUN 0, SIZE 3, AC_LUT[8'h03]             100 001
+    AC  Z[20] = 2, RUN 0, SIZE 2, AC_LUT[8'h02]              01 10
+    AC  Z[21] = 2, RUN 0, SIZE 2, AC_LUT[8'h02]              01 10
+    AC  Z[23] = -2, RUN 1, SIZE 2, AC_LUT[8'h12]             11011 01
+    AC  Z[24] = -1, RUN 0, SIZE 1, AC_LUT[8'h01]             00 0
+    AC  Z[25] = -3, RUN 0, SIZE 2, AC_LUT[8'h02]             01 00
+    AC  Z[27] = 1, RUN 1, SIZE 1, AC_LUT[8'h11]              1100 1
+    AC  Z[28] = -1, RUN 0, SIZE 1, AC_LUT[8'h01]             00 0
+    AC  Z[29] = 2, RUN 0, SIZE 2, AC_LUT[8'h02]              01 10
+    AC  Z[31] = -2, RUN 1, SIZE 2, AC_LUT[8'h12]             11011 01
+    AC  Z[33] = 2, RUN 1, SIZE 2, AC_LUT[8'h12]              11011 10
+    AC  Z[34] = 1, RUN 0, SIZE 1, AC_LUT[8'h01]              00 1
+    AC  Z[35] = 1, RUN 0, SIZE 1, AC_LUT[8'h01]              00 1
+    AC  Z[36] = -1, RUN 0, SIZE 1, AC_LUT[8'h01]             00 0
+    AC  Z[38] = -2, RUN 1, SIZE 2, AC_LUT[8'h12]             11011 01
+    AC  Z[39] = -2, RUN 0, SIZE 2, AC_LUT[8'h02]             01 01
+    AC  Z[40] = -1, RUN 0, SIZE 1, AC_LUT[8'h01]             00 0
+    AC  Z[41] = -1, RUN 0, SIZE 1, AC_LUT[8'h01]             00 0
+    AC  Z[42] = -1, RUN 0, SIZE 1, AC_LUT[8'h01]             00 0
+    AC  Z[44] = -1, RUN 1, SIZE 1, AC_LUT[8'h11]             1100 0
+    AC  Z[45] = -1, RUN 0, SIZE 1, AC_LUT[8'h01]             00 0
+    AC  Z[47] = -2, RUN 1, SIZE 2, AC_LUT[8'h12]             11011 01
+    AC  Z[48] = 1, RUN 0, SIZE 1, AC_LUT[8'h01]              00 1
+    AC  Z[49] = 1, RUN 0, SIZE 1, AC_LUT[8'h01]              00 1
+    AC  Z[52] = 1, RUN 2, SIZE 1, AC_LUT[8'h21]              11100 1
+    AC  Z[58] = -1, RUN 5, SIZE 1, AC_LUT[8'h51]             1111010 0
+    AC  Z[59] = -1, RUN 0, SIZE 1, AC_LUT[8'h01]             00 0
+    AC  Z[60] = 1, RUN 0, SIZE 1, AC_LUT[8'h01]              00 1
+    EOB  Z[61]..Z[63] are zero, AC_LUT[8'h00]                1010
+  bits of this block : 214, bits so far : 267
+  complete bytes so far : CB A9 7E 7F F3 F2 D5 F5 9D 99 90 C6 91 90 3F 74 D7 50 B3 6D 09 90 DB 77 12 36 A8 03 03 69 3C FA 03
+  bits waiting for the next block : 010
+
+==============================================================================
+If example block 2 were block 255 (the last block of an image), the remaining
+3 bit(s) would be padded with 5 logic-1 bit(s), and the whole output would be :
+  CB A9 7E 7F F3 F2 D5 F5 9D 99 90 C6 91 90 3F 74
+  D7 50 B3 6D 09 90 DB 77 12 36 A8 03 03 69 3C FA
+  03 5F

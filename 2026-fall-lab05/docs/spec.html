@@ -1,0 +1,1210 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JPEGLENC Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700;900&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #fcfcfa; --paper: #ffffff; --fg: #1d232b; --text: #2f3640; --muted: #6a737d; --faint: #9aa3ad;
+    --line: #e3e6ea; --rule: #1d232b; --code-bg: #f5f6f8;
+    --accent: #0b5cad; --accent-bg: #eef4fb; --hl: #f6d7c3;
+    --sans: "Inter", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    --serif: "Source Serif 4", "Noto Sans TC", "Microsoft JhengHei", serif;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17.5px/1.85 var(--sans); letter-spacing: .01em; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+main { max-width: 980px; margin: 0 auto; padding: 56px 16px 120px; }
+b, strong { color: var(--fg); font-weight: 600; }
+
+/* ---------- cover ---------- */
+header.cover { padding: 0 0 8px; margin-bottom: 8px; }
+.kicker { font: 600 .78rem/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+header.cover h1 { font: 700 2.8rem/1.2 var(--serif); color: var(--fg); margin: 14px 0 6px; letter-spacing: -.01em; }
+header.cover .sub { font-size: 1.05rem; color: var(--muted); margin: 0 0 24px; }
+.meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.meta div { padding: 10px 14px; border-left: 1px solid var(--line); }
+.meta div:first-child { border-left: 0; padding-left: 0; }
+.meta span { display: block; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.meta em { font-style: normal; font: 500 .95rem/1.5 var(--mono); color: var(--fg); }
+@media (max-width: 640px) { .meta { grid-template-columns: 1fr 1fr; } .meta div:nth-child(3) { border-left: 0; padding-left: 0; } }
+
+/* ---------- toc ---------- */
+nav#toc { margin: 28px 0 0; font-size: .95rem; }
+nav#toc .t { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-bottom: 8px; }
+nav#toc ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 32px; }
+nav#toc li { break-inside: avoid; }
+nav#toc a { display: flex; gap: 10px; padding: 3px 0; color: var(--text); text-decoration: none; border-left: 2px solid transparent; transition: color .15s, border-color .15s; }
+nav#toc a i { font: 500 .8rem/1.9 var(--mono); font-style: normal; color: var(--faint); min-width: 1.4em; }
+nav#toc a:hover { color: var(--accent); }
+nav#toc a.on { color: var(--accent); }
+nav#toc a.on i { color: var(--accent); }
+#tocbtn { display: none; }
+@media (min-width: 1100px) {
+    main { margin-left: max(260px, calc(50% - 490px)); margin-right: auto; max-width: min(980px, calc(100vw - 290px)); }
+    nav#toc { position: fixed; top: 56px; left: max(24px, calc(50% - 490px - 240px)); width: 200px; margin: 0; max-height: calc(100vh - 80px); overflow-y: auto; }
+    nav#toc ol { columns: 1; }
+    nav#toc a { padding: 3px 0 3px 12px; }
+    nav#toc a.on { border-left-color: var(--accent); }
+}
+@media (max-width: 1099px) {
+    #tocbtn { display: flex; align-items: center; gap: 6px; position: fixed; right: 16px; bottom: 16px; z-index: 30; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--fg); font: 500 .9rem/1 var(--sans); box-shadow: 0 4px 14px rgba(0,0,0,.12); cursor: pointer; }
+    body.toc-open nav#toc { position: fixed; top: 0; left: 0; bottom: 0; z-index: 20; width: min(300px, 85vw); margin: 0; padding: 28px 20px; background: var(--paper); box-shadow: 4px 0 24px rgba(0,0,0,.15); overflow-y: auto; }
+    body.toc-open nav#toc ol { columns: 1; }
+    body.toc-open::after { content: ""; position: fixed; inset: 0; z-index: 10; background: rgba(0,0,0,.25); }
+}
+
+/* ---------- headings ---------- */
+h2 { font: 700 1.85rem/1.3 var(--serif); color: var(--fg); margin: 72px 0 18px; padding-top: 18px; border-top: 1px solid var(--rule); display: flex; align-items: baseline; gap: 14px; }
+h2 .num { font: 600 .95rem/1 var(--mono); color: var(--accent); }
+h3 { font: 600 1.2rem/1.4 var(--sans); color: var(--fg); margin: 36px 0 10px; }
+h3 .num { font: 500 .9rem/1 var(--mono); color: var(--faint); margin-right: 10px; }
+p { margin: 10px 0; }
+ul, ol { margin: 10px 0; padding-left: 22px; }
+li { margin: 3px 0; }
+li::marker { color: var(--faint); }
+
+/* ---------- code ---------- */
+code, .mono { font-family: var(--mono); font-size: .86em; }
+code { background: var(--code-bg); color: #24292f; padding: 1px 5px; border-radius: 4px; border: 1px solid #eceef1; }
+pre { background: var(--code-bg); border: 1px solid #eceef1; border-radius: 8px; padding: 14px 18px; overflow-x: auto; line-height: 1.7; margin: 14px 0; font-size: .95rem; }
+pre code { background: none; border: 0; padding: 0; }
+
+/* ---------- tables (booktabs) ---------- */
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; margin: 18px auto 6px; font-size: .95rem; border-top: 1.5px solid var(--rule); border-bottom: 1.5px solid var(--rule); }
+th, td { padding: 7px 14px; text-align: center; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--fg); background: none; border-bottom: 1px solid var(--line); font-size: .9rem; letter-spacing: .02em; }
+tr:first-child th { border-bottom: 1px solid var(--rule); }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: #fafbfc; }
+td.l, th.l { text-align: left; }
+td:first-child, th { white-space: nowrap; }
+table.mono td, td.mono { font-family: var(--mono); font-size: .9rem; }
+.cap { text-align: center; color: var(--muted); font-size: .9rem; margin: 6px 0 22px; }
+.cap b { color: var(--fg); font-weight: 600; margin-right: 4px; }
+
+/* ---------- figures ---------- */
+figure { margin: 26px 0; padding: 22px 10px 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
+figure .cap { margin-bottom: 8px; }
+svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+svg text:not([font-family]) { font-family: var(--sans); }
+
+/* ---------- callouts ---------- */
+.rule { position: relative; border: 1px solid #d3e3f5; border-left: 3px solid var(--accent); background: var(--accent-bg); padding: 12px 16px 12px 16px; margin: 18px 0; border-radius: 0 8px 8px 0; color: var(--fg); }
+.rule::before { content: "RULE"; display: block; font: 600 .68rem/1 var(--sans); letter-spacing: .14em; color: var(--accent); margin-bottom: 6px; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+details { margin: 18px 0; border: 1px solid var(--line); border-radius: 8px; padding: 10px 16px; background: var(--paper); }
+summary { cursor: pointer; color: var(--accent); font-size: .9rem; font-weight: 500; }
+details table { font-size: .76rem; }
+details td, details th { padding: 2px 8px; }
+canvas { display: block; margin: 0 auto; image-rendering: pixelated; }
+@media (max-width: 640px) { header.cover h1 { font-size: 1.9rem; } h2 { font-size: 1.35rem; margin-top: 56px; } }
+</style>
+</head>
+<body>
+<button id="tocbtn" type="button" aria-label="目錄">☰ 目錄</button>
+<main>
+
+<header class="cover">
+    <div class="kicker">ICLAB 2026 Fall · Lab05</div>
+    <h1>JPEGLENC：JPEG-Like Encoder</h1>
+    <p class="sub">題目規格整理</p>
+    <div class="meta">
+        <div><span>Top module</span><em>JPEGLENC</em></div>
+        <div><span>Input</span><em>128 × 128 × 8b</em></div>
+        <div><span>Clock</span><em>≤ 20 ns</em></div>
+        <div><span>Latency</span><em>≤ 50,000</em></div>
+    </div>
+    <nav id="toc"><div class="t">Contents</div><ol></ol></nav>
+</header>
+
+<!-- ============================================================ -->
+<h2 id="s1">1. Overview</h2>
+<p>輸入一張 <b>128 x 128、8-bit 灰階</b>影像，輸出壓縮後的 <b>raw entropy bytes</b>。輸出不含 JPEG header / marker，也沒有 0xFF 後補 0x00 的 byte stuffing。</p>
+
+<figure>
+<svg id="fig1" viewBox="0 0 980 140" role="img" aria-label="Fig 1"></svg>
+<p class="cap">Fig 1. Algorithm flow (方塊下方為該級輸出的資料)</p>
+</figure>
+
+<p>每個 block 都要依序經過以下處理：</p>
+<ol>
+    <li>從 raster 順序的輸入中取出 8x8 block，依 block 0 → 255 的順序處理。</li>
+    <li>每個 pixel 減 128。</li>
+    <li>做整數 2-D DCT，累加完成後做 <code>round_s(·, 18)</code>，得到 <code>D(u,v)</code>。</li>
+    <li>用 shift matrix 量化：<code>Q(u,v) = round_s(D(u,v), S(u,v))</code>。</li>
+    <li>依 zigzag 順序排成 <code>Z[0..63]</code>，再做 DC 差分、AC run-length、Huffman 編碼，最後打包成 byte 輸出。</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="s2">2. Interface</h2>
+<div class="scroll"><table>
+    <tr><th>Port</th><th>Dir</th><th>Width</th><th class="l">Description</th></tr>
+    <tr><td>clk</td><td>I</td><td>1</td><td class="l">Clock，週期自訂，上限 20 ns，精度 0.1 ns</td></tr>
+    <tr><td>rst_n</td><td>I</td><td>1</td><td class="l">非同步 active-low reset，只在模擬開始時給一次</td></tr>
+    <tr><td>in_valid</td><td>I</td><td>1</td><td class="l">一張圖連續拉高 16,384 cycle，中間沒有 bubble</td></tr>
+    <tr><td>in_data</td><td>I</td><td>8</td><td class="l">unsigned pixel，依 raster 順序從 P(0,0) 送到 P(127,127)</td></tr>
+    <tr><td>out_valid</td><td>O</td><td>1</td><td class="l">每個 high cycle 輸出 1 byte，可以有 bubble，不能跟 in_valid 重疊</td></tr>
+    <tr><td>out_data</td><td>O</td><td>8</td><td class="l">bitstream 中較早的 bit 放在 out_data[7]；out_valid 為低時必須是 0</td></tr>
+</table></div>
+<p class="cap">Table 1. I/O ports</p>
+
+<figure>
+<svg id="fig2" viewBox="0 0 1080 330" role="img" aria-label="Fig 2"></svg>
+<p class="cap">Fig 2. 一張圖的 I/O 時序</p>
+</figure>
+<ul>
+    <li>所有 input 收完之後才能開始輸出。下一張圖會在最後一個 out_valid 之後 3~6 個 negedge 開始送。</li>
+    <li>out_valid 的 high cycle 數必須<b>剛好等於</b>編碼後的 byte 數。沒有 <code>out_last</code>，送完最後一個 byte 就停止。</li>
+    <li>previous_dc 在每張圖開始時歸零 (見 8.5)。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="s3">3. Input Order &amp; Block Organization</h2>
+
+<h3>3.1 Raster input</h3>
+<p>pixel 依 raster 順序輸入：同一列中 x 從 0 增加到 127，接著 y 加 1。第 k 個 input 的座標為 <code>k = 128y + x</code>。</p>
+
+<h3>3.2 Block 切分</h3>
+<p>影像切成 16 x 16 = <b>256 個不重疊的 8x8 block</b>，block 也依 raster 順序編號，從左上的 block 0 到右下的 block 255。</p>
+
+<figure>
+<svg id="fig3" viewBox="0 0 730 400" role="img" aria-label="Fig 3"></svg>
+<p class="cap">Fig 3. Block 切分與 block 內的輸入順序</p>
+</figure>
+
+<div class="scroll"><table>
+    <tr><th>Quantity</th><th>Definition</th><th>Range</th><th>Bit view</th></tr>
+    <tr><td>Input index k</td><td class="mono">128y + x</td><td>0 ~ 16383</td><td class="mono">{y[6:0], x[6:0]}</td></tr>
+    <tr><td>Block ID b</td><td class="mono">16⌊y/8⌋ + ⌊x/8⌋</td><td>0 ~ 255</td><td class="mono">{by, bx}</td></tr>
+    <tr><td>Block coord.</td><td class="mono">bx = b mod 16, by = ⌊b/16⌋</td><td>0 ~ 15</td><td class="mono">bx = x[6:3], by = y[6:3]</td></tr>
+    <tr><td>Local coord.</td><td class="mono">lx = x mod 8, ly = y mod 8</td><td>0 ~ 7</td><td class="mono">lx = x[2:0], ly = y[2:0]</td></tr>
+</table></div>
+<p class="cap">Table 2. Coordinate definitions</p>
+
+
+<!-- ============================================================ -->
+<h2 id="s4">4. Level Shift</h2>
+
+<h3>4.1 定義</h3>
+<pre class="mono">P'(x,y) = P(x,y) − 128</pre>
+<div class="scroll"><table>
+    <tr><th>P</th><td>0</td><td>127</td><td>128</td><td>255</td></tr>
+    <tr><th>P'</th><td>−128</td><td>−1</td><td>0</td><td>127</td></tr>
+</table></div>
+<p class="cap">Table 3. Level-shift examples</p>
+<p>把 unsigned 的 0 ~ 255 轉成以 0 為中心的 signed −128 ~ 127。從這一步開始，所有數值都是 signed。</p>
+
+<h3>4.2 對 DCT 係數的影響</h3>
+<p>減 128 等於每個 pixel 加上同一個常數，它對 row transform 的貢獻為 <code>−128 · Σ<sub>x</sub> C(u,x)</code>。C 的 u ≥ 1 各列總和為 0 (Table 5)，所以：</p>
+<ul>
+    <li><b>63 個 AC 係數完全不受影響。</b></li>
+    <li><b>只有 D(0,0) 平移固定量：</b>有 shift 的 D(0,0) = 沒有 shift 的 D(0,0) − 1024 (= 128 × 8)。</li>
+</ul>
+<div class="scroll"><table>
+    <tr><th>Item</th><th>有 level shift</th><th>無 level shift</th></tr>
+    <tr><td>DCT 輸入範圍</td><td>−128 ~ 127 (8b signed)</td><td>0 ~ 255 (要 9b signed)</td></tr>
+    <tr><td>D(0,0) 範圍</td><td>−1024 ~ 1024</td><td>0 ~ 2040</td></tr>
+    <tr><td>Q(0,0) = round_s(D(0,0), 4)</td><td>−64 ~ 64</td><td>0 ~ 128</td></tr>
+    <tr><td>AC 係數</td><td colspan="2">相同</td></tr>
+</table></div>
+<p class="cap">Table 4. Level shift 的影響</p>
+
+<h3>4.3 目的</h3>
+<ul>
+    <li><b>數值以 0 為中心：</b>DC 範圍從 0 ~ 2040 變成 ±1024，中間灰階的 block 的 DC 接近 0，後續 entropy coding 的 SIZE 較小。</li>
+    <li><b>乘法運算元少 1 bit：</b>C 為 signed，輸入若是 0 ~ 255 需用 9-bit signed 表示；shift 後剛好是 8-bit signed。</li>
+    <li><b>與標準 JPEG 一致：</b>標準 JPEG 的 DCT 輸入即定義為以 0 為中心的 signed 值。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="s5">5. Integer 2-D DCT</h2>
+
+<h3>5.1 意義</h3>
+<p>DCT 把 8x8 block 從空間域轉成 64 個頻率係數 <code>D(u,v)</code>。u 是水平頻率，v 是垂直頻率。<code>D(0,0)</code> 稱為 <b>DC</b>，代表 block 的平均亮度；其餘 63 個稱為 <b>AC</b>，代表亮度的變化。自然影像的高頻 AC 通常很小，量化後多半變成 0，這是後面能壓縮的原因。</p>
+<figure>
+<svg id="fig4" viewBox="0 0 380 370" style="max-width:400px" role="img" aria-label="Fig 4"></svg>
+<p class="cap">Fig 4. 64 個 DCT basis pattern，第 (u,v) 格為 C(u,x)·C(v,y)</p>
+</figure>
+
+<h3>5.2 Integer cosine matrix C</h3>
+<p>C 是標準 DCT 的 cosine 值乘上 2<sup>8</sup> 後取整數的 <b>8x8 常數表</b>，所以整個運算都是整數。</p>
+<div class="scroll"><table class="mono" id="cmat"></table></div>
+<p class="cap">Table 5. Integer cosine coefficient matrix C[freq][pos]</p>
+
+<p><b>索引：</b>C 只有一張表，第 1 個參數是<b>頻率</b> (列)，第 2 個參數是<b>位置</b> (欄)。spec 表頭寫 C(u,x) 只是借用第一次出現時的變數名稱；column transform 的 C(v,y) 查的是同一張表。</p>
+<div class="scroll"><table>
+    <tr><th>使用處</th><th>寫法</th><th>第 1 參數 (列)</th><th>第 2 參數 (欄)</th></tr>
+    <tr><td>row transform</td><td class="mono">C(u,x)</td><td>u：水平頻率</td><td>x：水平位置</td></tr>
+    <tr><td>column transform</td><td class="mono">C(v,y)</td><td>v：垂直頻率</td><td>y：垂直位置</td></tr>
+</table></div>
+<p class="cap">Table 6. C 的索引。例：C(v=2, y=3) 與 C(u=2, x=3) 都是第 2 列第 3 欄 = −237。</p>
+
+<p><b>結構：</b></p>
+<ul>
+    <li>64 個元素只有 7 種絕對值：181、251、237、213、142、98、50。</li>
+    <li>偶數列 (u = 0, 2, 4, 6) 左右對稱：<code>C(u,x) = C(u,7−x)</code>。</li>
+    <li>奇數列 (u = 1, 3, 5, 7) 左右反對稱：<code>C(u,x) = −C(u,7−x)</code>。</li>
+    <li>u ≥ 1 的每一列總和為 0 (見 4.2)。</li>
+</ul>
+
+<h3>5.3 計算</h3>
+<pre class="mono">R(u,y) = Σ<sub>x=0..7</sub> P'(x,y) · C(u,x)       row transform
+A(u,v) = Σ<sub>y=0..7</sub> R(u,y)  · C(v,y)       column transform
+D(u,v) = round_s(A(u,v), 18)</pre>
+
+<figure>
+<svg id="fig5" viewBox="0 0 790 500" role="img" aria-label="Fig 5"></svg>
+<p class="cap">Fig 5. 2-D DCT = 先對每一列做 1-D DCT，再對每一行做 1-D DCT。下半部放大 R(2,y) 的計算：輸出的每一格都由同一列的 8 個 pixel 共同算出</p>
+</figure>
+
+<p><b>為什麼除以 2<sup>18</sup>：</b>乘了兩次 C，放大 2<sup>8</sup> x 2<sup>8</sup> = 2<sup>16</sup>；標準 2-D DCT 本身還有 1/4 = 2<sup>−2</sup> 的係數，合計 2<sup>18</sup>。</p>
+<div class="rule">R 和 A 在累加過程中<b>不可 round 或截斷</b>，只能在 A(u,v) 算完之後 round 一次。</div>
+
+<h3>5.4 Symmetric signed rounding</h3>
+<pre class="mono">round_s(a, n) =   (|a| + 2^(n−1)) >> n        , a ≥ 0
+                −((|a| + 2^(n−1)) >> n)       , a &lt; 0</pre>
+<p>先取絕對值、加 2<sup>n−1</sup>、右移 n 位，再把正負號補回去。剛好 .5 時往遠離 0 的方向進位，正負兩邊對稱。</p>
+<p><b>為什麼要加 2<sup>n−1</sup>：</b>右移 n 位等於無條件捨去小數，2<sup>n−1</sup> 代表 0.5。先加 0.5，小數 ≥ .5 時會先進位到整數部分，捨去小數後留下的就是四捨五入的結果；小數 &lt; .5 時不會進位，直接捨去。</p>
+<pre class="mono">3.4 + 0.5 = 3.9  → 捨去小數 → 3
+3.5 + 0.5 = 4.0  → 捨去小數 → 4
+3.7 + 0.5 = 4.2  → 捨去小數 → 4
+
+A = 917504 (A / 2^18 = 3.5)
+  A >> 18             = 3     先右移，0.5 已被捨去
+  (A + 2^17) >> 18    = 4     round_s 的結果</pre>
+<p>以 bit 來看，右移捨去的是最低 n 個 bit (小數部分)，其中 bit n−1 代表 0.5。因此加 2<sup>n−1</sup> 後是否進位只取決於 |a|[n−1]，下式與 round_s 的絕對值部分等價：</p>
+<pre class="mono">(|a| + 2^(n−1)) >> n  ==  (|a| >> n) + |a|[n−1]</pre>
+<div class="scroll"><table>
+    <tr><th>Operation</th><th>Calculation</th><th>Result</th></tr>
+    <tr><td class="mono">round_s(25, 3)</td><td class="mono">(25 + 4) >> 3</td><td>+3</td></tr>
+    <tr><td class="mono">round_s(−25, 3)</td><td class="mono">−((25 + 4) >> 3)</td><td>−3</td></tr>
+    <tr><td class="mono">round_s(28, 3)</td><td class="mono">(28 + 4) >> 3</td><td>+4</td></tr>
+    <tr><td class="mono">round_s(−28, 3)</td><td class="mono">−((28 + 4) >> 3)</td><td>−4</td></tr>
+    <tr><td class="mono">round_s(−1024, 4)</td><td class="mono">−((1024 + 8) >> 4)</td><td>−64</td></tr>
+</table></div>
+<p class="cap">Table 7. round_s examples</p>
+<div class="rule">不可直接對二補數加 bias 再做算術右移：<code>(−28 + 4) >>> 3 = −3</code>，正確答案是 −4。</div>
+
+<h3>5.5 Example：constant block</h3>
+<p>block 內 64 個 pixel 都是 200：</p>
+<div class="scroll"><table>
+    <tr><th>Step</th><th class="l">Calculation</th><th>Result</th></tr>
+    <tr><td>P'</td><td class="l mono">200 − 128</td><td>72</td></tr>
+    <tr><td>R(0,y)</td><td class="l mono">72 × 8 × 181</td><td>104,256</td></tr>
+    <tr><td>R(u≥1,y)</td><td class="l">C 的第 u 列總和為 0</td><td>0</td></tr>
+    <tr><td>A(0,0)</td><td class="l mono">104,256 × 8 × 181</td><td>150,962,688</td></tr>
+    <tr><td>D(0,0)</td><td class="l mono">round_s(150,962,688, 18)</td><td><b>576</b></td></tr>
+    <tr><td>其餘 D(u,v)</td><td class="l">A(u,v) = 0</td><td>0</td></tr>
+</table></div>
+<p class="cap">Table 8. Worked example。整塊顏色相同，只有 DC。</p>
+<p>busy block 的完整數值 (pixel、D、Q、Z) 可以對照 <code>00_TESTBED/src/example_trace.txt</code> 的 Example block 2。</p>
+
+<h3>5.6 數值範圍</h3>
+<div class="scroll"><table>
+    <tr><th>Signal</th><th>Max |value|</th><th>Signed bits</th></tr>
+    <tr><td>P'</td><td>128</td><td>8</td></tr>
+    <tr><td>R(u,y)</td><td>128 × 1448 = 185,344</td><td>19</td></tr>
+    <tr><td>A(u,v)</td><td>185,344 × 1448 ≈ 2.68 × 10<sup>8</sup></td><td>29</td></tr>
+    <tr><td>D(u,v)</td><td>1024</td><td>12</td></tr>
+</table></div>
+<p class="cap">Table 9. 保守上界 (1448 = C 單列絕對值總和的最大值)</p>
+
+<!-- ============================================================ -->
+<h2 id="s6">6. Quantization</h2>
+<pre class="mono">Q(u,v) = round_s(D(u,v), S(u,v))</pre>
+<p>每個頻率位置用不同的 power-of-two 除數量化。shift 值 S(u,v) 範圍為 3 ~ 7：低頻位置的 S 較小，保留較多精度；高頻位置的 S 較大，較容易變成 0。S 由 <code>00_TESTBED/src/shift_table.txt</code> 提供，每行一組 <code>U V S</code>。</p>
+<figure>
+<svg id="fig6" viewBox="0 0 400 385" style="max-width:420px" role="img" aria-label="Fig 6"></svg>
+<p class="cap">Fig 6. Quantization shift matrix S(u,v)，顏色越深 S 越大</p>
+</figure>
+<div class="rule">DCT 與量化是<b>兩次獨立的 rounding</b>，不可合併成 round_s(A(u,v), 18 + S(u,v))。</div>
+<div class="scroll"><table>
+    <tr><th>Case</th><th class="l">Calculation</th><th>Q</th></tr>
+    <tr><td>正確 (兩次 rounding)</td><td class="l mono">round_s(round_s(917504, 18), 3) = round_s(4, 3)</td><td>1</td></tr>
+    <tr><td>錯誤 (合併)</td><td class="l mono">round_s(917504, 21)</td><td>0</td></tr>
+    <tr><td>constant block (pixel = 200)</td><td class="l mono">round_s(576, S(0,0) = 4)</td><td>36</td></tr>
+</table></div>
+<p class="cap">Table 10. Quantization examples</p>
+
+<!-- ============================================================ -->
+<h2 id="s7">7. Zigzag Scan</h2>
+<p>64 個 Q(u,v) 依 zigzag 順序排成一維序列 <code>Z[0..63]</code>。<code>Z[0]</code> 為 DC，<code>Z[1..63]</code> 為 AC。順序由 <code>00_TESTBED/src/zigzag_table.txt</code> 提供，每行一組 <code>INDEX U V</code>，代表 <code>Z[INDEX] = Q(U, V)</code>。</p>
+<figure>
+<svg id="fig7" viewBox="0 0 400 380" style="max-width:420px" role="img" aria-label="Fig 7"></svg>
+<p class="cap">Fig 7. Zigzag scan order，格內數字為 INDEX</p>
+</figure>
+<div class="scroll"><table>
+    <tr><th>INDEX</th><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>…</td><td>63</td></tr>
+    <tr><th>Z</th><td class="mono">Q(0,0)</td><td class="mono">Q(1,0)</td><td class="mono">Q(0,1)</td><td class="mono">Q(0,2)</td><td class="mono">Q(1,1)</td><td class="mono">Q(2,0)</td><td class="mono">Q(3,0)</td><td>…</td><td class="mono">Q(7,7)</td></tr>
+</table></div>
+<p class="cap">Table 11. Zigzag 序列開頭 (U = 水平 u，V = 垂直 v)</p>
+<p>低頻係數排在前面，高頻係數排在後面，所以量化後的 0 通常集中在序列尾端。</p>
+
+<!-- ============================================================ -->
+<h2 id="s8">8. Entropy Coding</h2>
+
+<h3>8.1 這一步在做什麼</h3>
+<p>到 zigzag 為止，每個 block 已經變成 64 個整數 <code>Z[0..63]</code>。Entropy coding 要把這 64 個整數<b>寫成一串 0 和 1</b>，而且越短越好。過程中數值不會改變，解碼端可以從這串 bit 完整還原出 Z。</p>
+<p>以 9.4 的 block 為例 (Fig 8 ①)：最直接的寫法是每個數字固定用 12 bit，64 × 12 = 768 bit。但這 64 個數字只有 3 個不是 0，大部分的 bit 都浪費在寫 0。Entropy coding 用下面 4 個想法，把它縮短到 41 bit：</p>
+<ol>
+    <li><b>0 不要一個一個寫：</b>改成「跳過幾個 0，然後是某個數」。例如 <code>0, 0, +3</code> 寫成「跳過 2 個 0，然後 +3」。後面全部是 0 時，用一個「結束」記號 (EOB) 代表。詳見 8.6。</li>
+    <li><b>小的數字用少一點 bit：</b>先說「這個數有幾個 bit」(SIZE)，再寫出那幾個 bit (amplitude)。+3 只需要 2 bit，不用寫滿 12 bit。詳見 8.4。</li>
+    <li><b>常出現的說明用短碼：</b>「跳過幾個 0、數值有幾個 bit」這樣的說明稱為 symbol。常出現的 symbol 用短碼，少出現的用長碼，這就是 Huffman coding。詳見 8.2。</li>
+    <li><b>DC 只記差多少：</b>相鄰 block 的平均亮度通常很接近，所以 Z[0] 不直接寫，只寫它跟前一個 block 的 Z[0] 差多少。−15 跟 −20 只差 +5。詳見 8.5。</li>
+</ol>
+<figure>
+<svg id="figec" viewBox="0 0 860 300" role="img" aria-label="Entropy coding overview"></svg>
+<p class="cap">Fig 8. Entropy coding 的過程：① 64 個整數 → ② 5 個 symbol → ③ 41 bit</p>
+</figure>
+<p>每個 block 產生的 bit 依 block 0 → 255 的順序接在一起，最後切成 byte 輸出 (Section 9)。因為 DC 的差值要用到前一個 block，entropy coding 一定要照 block 的順序做。</p>
+
+<h3>8.2 Huffman Coding 基礎</h3>
+<p><b>概念：</b>Huffman coding 跟摩斯電碼的想法一樣。英文裡最常用的字母 E 只用一個點 <code>·</code>，很少用的 Q 則用 4 個符號 <code>− − · −</code>。常用的給短碼、少用的給長碼，平均下來整段訊息就變短了。</p>
+<p>在本題中，被編碼的對象是 8.3 介紹的 symbol，例如「跳過 2 個 0，數值有 2 個 bit」。每一種 symbol 都對應一個固定的碼，寫在 TA 提供的表裡。<b>這張表是 JPEG 標準定好的，不需要自己建，只要查表。</b></p>
+<figure>
+<svg id="fighuff" viewBox="0 0 860 300" role="img" aria-label="AC Huffman code length"></svg>
+<p class="cap">Fig 9. AC Huffman 碼長範例：RUN 與 SIZE 越小的 symbol 越常出現，碼越短</p>
+</figure>
+<p><b>為什麼不需要分隔符號：</b>每個碼的長度不同，bit 之間又沒有分隔，解碼端要怎麼知道一個碼在哪裡結束？這是因為表裡的碼有 <b>prefix-free</b> 的特性：任何一個碼都不會是另一個碼的開頭。解碼端一個 bit 一個 bit 往下讀，只要讀到的 bit 剛好對上表中的某個碼，就一定是它，不會有第二種可能。</p>
+<p><b>編碼時要做的事：</b></p>
+<ol>
+    <li>決定這次要輸出哪一個 symbol (8.3)。</li>
+    <li>查表，得到這個 symbol 的碼 (CODE_BITS) 與碼長 (LENGTH)。表格內容見 8.7。</li>
+    <li>從 MSB 開始，輸出<b>剛好 LENGTH 個 bit</b>。</li>
+</ol>
+
+<h3>8.3 Symbol 種類</h3>
+<p>每個 block 依序產生一個 DC symbol 與 0 個以上的 AC symbol。每個 symbol 先輸出 Huffman code，DC 與非零 AC 係數在 code 之後緊接 SIZE 個 amplitude bit。</p>
+<div class="scroll"><table>
+    <tr><th>Symbol</th><th>Huffman 位址</th><th>Huffman table</th><th>Amplitude</th><th class="l">意義</th><th>章節</th></tr>
+    <tr><td>DC</td><td class="mono">SIZE(delta_dc)</td><td>DC</td><td>SIZE bits</td><td class="l">與上一個 block 的 DC 差值</td><td>8.5</td></tr>
+    <tr><td>AC</td><td class="mono">(RUN &lt;&lt; 4) | SIZE</td><td>AC</td><td>SIZE bits</td><td class="l">前面有 RUN 個 0 的非零 AC 係數</td><td>8.6</td></tr>
+    <tr><td>ZRL</td><td class="mono">8'hF0</td><td>AC</td><td>無</td><td class="l">16 個連續 0，且後面還有非零係數</td><td>8.6</td></tr>
+    <tr><td>EOB</td><td class="mono">8'h00</td><td>AC</td><td>無</td><td class="l">剩下的 AC 全部為 0</td><td>8.6</td></tr>
+</table></div>
+<p class="cap">Table 12. Symbol types</p>
+<figure>
+<svg id="fig8" viewBox="0 0 860 120" role="img" aria-label="Block fields"></svg>
+<p class="cap">Fig 10. 一個 block 的 field 組成</p>
+</figure>
+
+<h3>8.4 SIZE 與 Amplitude</h3>
+<p>對任一 signed 值 a：</p>
+<ul>
+    <li><b>SIZE</b> = |a| 的 bit 數。a = 0 時 SIZE = 0，沒有 amplitude field。</li>
+    <li><b>a &gt; 0：</b>amplitude 為 a 的一般二進位，共 SIZE bits。</li>
+    <li><b>a &lt; 0：</b>amplitude 為 <code>(2<sup>SIZE</sup> − 1) + a</code>，等於 |a| 逐位元反相 (ones' complement)，不是二補數。</li>
+</ul>
+<div class="scroll"><table>
+    <tr><th>SIZE</th><th>正數範圍</th><th>負數範圍</th><th class="l">Amplitude 例</th></tr>
+    <tr><td>0</td><td>0</td><td>—</td><td class="l">無 amplitude bit</td></tr>
+    <tr><td>1</td><td>1</td><td>−1</td><td class="l mono">+1 → 1, −1 → 0</td></tr>
+    <tr><td>2</td><td>2 ~ 3</td><td>−3 ~ −2</td><td class="l mono">−3 → 00, −2 → 01, +3 → 11</td></tr>
+    <tr><td>3</td><td>4 ~ 7</td><td>−7 ~ −4</td><td class="l mono">−7 → 000, −4 → 011, +5 → 101</td></tr>
+    <tr><td>4</td><td>8 ~ 15</td><td>−15 ~ −8</td><td class="l mono">−15 → 0000, −8 → 0111</td></tr>
+    <tr><td>5</td><td>16 ~ 31</td><td>−31 ~ −16</td><td class="l mono">−25 → 00110, −20 → 01011</td></tr>
+    <tr><td>6</td><td>32 ~ 63</td><td>−63 ~ −32</td><td class="l mono">−32 → 011111, +36 → 100100</td></tr>
+    <tr><td>7</td><td>64 ~ 127</td><td>−127 ~ −64</td><td class="l mono">−64 → 0111111</td></tr>
+    <tr><td>s (8 ~ 11)</td><td>2<sup>s−1</sup> ~ 2<sup>s</sup>−1</td><td>−(2<sup>s</sup>−1) ~ −2<sup>s−1</sup></td><td class="l">同上規則</td></tr>
+</table></div>
+<p class="cap">Table 13. SIZE categories and amplitude</p>
+
+<h3>8.5 DC Differential</h3>
+<p>每個 block 的 DC 係數 Z[0] 不直接編碼，而是編碼它與<b>前一個 block 的 DC</b> 的差值 delta_dc。相鄰 block 的平均亮度通常接近，差值較小，需要的 bit 也較少。DC 的輸出由兩個 field 組成：先輸出 Huffman code 說明數值有幾個 bit (SIZE)，再輸出 SIZE 個 bit 的數值本身 (amplitude)。</p>
+<figure>
+<svg id="figdc" viewBox="0 0 860 230" role="img" aria-label="DC flow"></svg>
+<p class="cap">Fig 11. DC 編碼流程。previous_dc 在每張圖開始時為 0，每個 block 編完後更新為該 block 的 Z[0]</p>
+</figure>
+<p><b>步驟：</b>對每個 block 依 block 0 → 255 的順序執行</p>
+<ol>
+    <li><b>算差值：</b><code>delta_dc = Z[0] − previous_dc</code></li>
+    <li><b>更新 predictor：</b><code>previous_dc = Z[0]</code>，給下一個 block 使用</li>
+    <li><b>算 SIZE：</b>SIZE = |delta_dc| 的 bit 數 (Table 13)；delta_dc = 0 時 SIZE = 0</li>
+    <li><b>輸出 Huffman code：</b>以 SIZE 為位址查 DC table，輸出 <code>DC_LUT[SIZE]</code> (Table 17)</li>
+    <li><b>輸出 amplitude：</b>輸出 delta_dc 的 SIZE 個 amplitude bit (8.4)；SIZE = 0 時不輸出</li>
+</ol>
+<pre class="mono">previous_dc = 0                          // 每張圖的 block 0 之前
+for b = 0 .. 255:
+    delta_dc    = Z_b[0] − previous_dc
+    previous_dc = Z_b[0]
+    s = SIZE(delta_dc)
+    emit_huffman(DC_LUT[s])
+    emit_amplitude(delta_dc, s)
+    ...                                  // 接著編 AC (8.6)</pre>
+<div class="scroll"><table>
+    <tr><th>Block</th><th>Z[0]</th><th>previous_dc</th><th>delta_dc</th><th>SIZE</th><th>DC_LUT[SIZE]</th><th>Amplitude</th><th class="l">DC 輸出</th></tr>
+    <tr><td>0</td><td>−20</td><td>0</td><td>−20</td><td>5</td><td class="mono">110</td><td class="mono">01011</td><td class="l mono">110 01011</td></tr>
+    <tr><td>1</td><td>−15</td><td>−20</td><td>+5</td><td>3</td><td class="mono">100</td><td class="mono">101</td><td class="l mono">100 101</td></tr>
+    <tr><td>2</td><td>0</td><td>−15</td><td>+15</td><td>4</td><td class="mono">101</td><td class="mono">1111</td><td class="l mono">101 1111</td></tr>
+</table></div>
+<p class="cap">Table 14. DC 編碼範例 (block 0 ~ 2 取自 example_trace.txt)</p>
+<ul>
+    <li>previous_dc 在每張圖的 block 0 之前 (以及 reset 後) 設為 0；在 block 之間與 block row 之間<b>不重設</b>。</li>
+    <li>delta_dc = 0 時仍要輸出 SIZE 0 的 code <code>00</code>，只是沒有 amplitude。</li>
+    <li>amplitude 為負數時使用 ones' complement：例如 −20 的 |−20| = <code>10100</code>，逐位元反相得 <code>01011</code>。</li>
+</ul>
+
+<h3>8.6 AC Run-Length</h3>
+<p>Z[1..63] 由前往後掃描，用計數器 run 記錄目前累積了幾個 0。0 不直接輸出；遇到非零係數時，把「前面 0 的個數 (RUN)」與「這個係數的 SIZE」合成一個 symbol 查 AC table，再輸出係數的 amplitude。結尾剩下的 0 用一個 EOB 表示。</p>
+<figure>
+<svg id="figac" viewBox="0 0 860 420" role="img" aria-label="AC run-length flow"></svg>
+<p class="cap">Fig 12. AC run-length 編碼流程 (每個 block 執行一次)</p>
+</figure>
+<p><b>步驟：</b></p>
+<ol>
+    <li><b>初始化：</b><code>run = 0</code>，從 <code>k = 1</code> 開始掃描。</li>
+    <li><b>Z[k] = 0：</b><code>run = run + 1</code>，不輸出，繼續下一個 k。</li>
+    <li><b>Z[k] ≠ 0：</b>
+        <ol type="a">
+            <li>若 <code>run ≥ 16</code>：輸出 ZRL (<code>AC_LUT[8'hF0]</code>)，<code>run = run − 16</code>，重複直到 <code>run &lt; 16</code>。</li>
+            <li>SIZE = |Z[k]| 的 bit 數，輸出 <code>AC_LUT[(run &lt;&lt; 4) | SIZE]</code>。</li>
+            <li>輸出 Z[k] 的 SIZE 個 amplitude bit (8.4)。</li>
+            <li><code>run = 0</code>。</li>
+        </ol>
+    </li>
+    <li><b>掃完 k = 63 後：</b>若 <code>run &gt; 0</code>，輸出一個 EOB (<code>AC_LUT[8'h00]</code>)；若 <code>run = 0</code> (Z[63] 非零)，不輸出 EOB。</li>
+</ol>
+<pre class="mono">run = 0
+for k = 1 .. 63:
+    if Z[k] == 0: run = run + 1; continue
+    while run >= 16:
+        emit_huffman(AC_LUT[8'hF0])      // ZRL
+        run = run − 16
+    s = SIZE(Z[k])
+    emit_huffman(AC_LUT[(run &lt;&lt; 4) | s])
+    emit_amplitude(Z[k], s)
+    run = 0
+if run > 0: emit_huffman(AC_LUT[8'h00])  // EOB</pre>
+<p><b>範例：</b>Z[3] = +3、Z[22] = −2，其餘 AC 皆為 0 (即 9.4 的範例 block)：</p>
+<div class="scroll"><table>
+    <tr><th>k</th><th>Z[k]</th><th class="l">動作</th><th>run</th><th class="l">輸出</th></tr>
+    <tr><td>1 ~ 2</td><td>0</td><td class="l">run + 1</td><td>2</td><td class="l">—</td></tr>
+    <tr><td>3</td><td>+3</td><td class="l">RUN 2、SIZE 2 → <code>AC_LUT[8'h22]</code> + amplitude，run 歸零</td><td>0</td><td class="l mono">11111001 11</td></tr>
+    <tr><td>4 ~ 21</td><td>0</td><td class="l">run + 1 (共 18 個 0)</td><td>18</td><td class="l">—</td></tr>
+    <tr><td rowspan="2">22</td><td rowspan="2">−2</td><td class="l">run ≥ 16 → 輸出 ZRL，run = 18 − 16</td><td>2</td><td class="l mono">11111111001</td></tr>
+    <tr><td class="l">RUN 2、SIZE 2 → <code>AC_LUT[8'h22]</code> + amplitude，run 歸零</td><td>0</td><td class="l mono">11111001 01</td></tr>
+    <tr><td>23 ~ 63</td><td>0</td><td class="l">run + 1 (共 41 個 0)</td><td>41</td><td class="l">—</td></tr>
+    <tr><td>結束</td><td>—</td><td class="l">run &gt; 0 → 輸出 EOB</td><td>—</td><td class="l mono">1010</td></tr>
+</table></div>
+<p class="cap">Table 15. AC 編碼範例</p>
+<div class="scroll"><table>
+    <tr><th>Case</th><th class="l">輸出</th></tr>
+    <tr><td>非零 AC 係數</td><td class="l"><code>AC_LUT[(RUN &lt;&lt; 4) | SIZE]</code> + SIZE 個 amplitude bit</td></tr>
+    <tr><td>非零係數前有 ≥ 16 個 0</td><td class="l">每滿 16 個 0 輸出一個 ZRL，剩下的 0 計入下一個 symbol 的 RUN</td></tr>
+    <tr><td>結尾有 1 個以上的 0</td><td class="l">只輸出一個 EOB；結尾的 0 不論多少都不輸出 ZRL</td></tr>
+    <tr><td>Z[63] 非零</td><td class="l">以正常 RUN/SIZE symbol 結束，<b>不輸出 EOB</b></td></tr>
+    <tr><td>Z[1..63] 全為 0</td><td class="l">只輸出一個 EOB</td></tr>
+</table></div>
+<p class="cap">Table 16. AC symbol rules</p>
+
+<h3>8.7 Huffman Tables</h3>
+<p>Huffman table 由 <code>00_TESTBED/src/dc_huffman_lut.txt</code> 與 <code>ac_huffman_lut.txt</code> 提供。檔案第一行為標題，之後每行包含位址、碼長 LENGTH、CODE_HEX 與 CODE_BITS (MSB first)。CODE_HEX 為靠右對齊，前面補的 0 不屬於碼，輸出時以 LENGTH 為準。</p>
+<div class="grid2">
+<div>
+<div class="scroll"><table id="dctab" class="mono"></table></div>
+<p class="cap">Table 17. DC Huffman table (位址 = SIZE)</p>
+</div>
+<div>
+<div class="scroll"><table>
+    <tr><th>Item</th><th class="l">Value</th></tr>
+    <tr><td>位址</td><td class="l mono">(RUN &lt;&lt; 4) | SIZE</td></tr>
+    <tr><td>RUN</td><td class="l">0 ~ 15</td></tr>
+    <tr><td>SIZE</td><td class="l">1 ~ 10</td></tr>
+    <tr><td>特殊 symbol</td><td class="l mono">00 (EOB), F0 (ZRL)</td></tr>
+    <tr><td>Entry 數</td><td class="l">16 × 10 + 2 = 162</td></tr>
+    <tr><td>碼長</td><td class="l">2 ~ 16 bits</td></tr>
+    <tr><td>EOB</td><td class="l mono">1010 (4 bits)</td></tr>
+    <tr><td>ZRL</td><td class="l mono">11111111001 (11 bits)</td></tr>
+</table></div>
+<p class="cap">Table 18. AC Huffman table 結構</p>
+</div>
+</div>
+<details>
+<summary>Table 19. AC Huffman table (完整 162 entries)</summary>
+<div class="scroll"><table id="actab" class="mono"></table></div>
+</details>
+
+<h3>8.8 數值範圍</h3>
+<div class="scroll"><table>
+    <tr><th>Signal</th><th>範圍 (推導上界)</th><th>SIZE 上界</th></tr>
+    <tr><td>Q(0,0)</td><td>−64 ~ 64</td><td>—</td></tr>
+    <tr><td>delta_dc</td><td>−128 ~ 128</td><td>8</td></tr>
+    <tr><td>AC Q(u,v)</td><td>|Q| ≤ 118</td><td>7</td></tr>
+</table></div>
+<p class="cap">Table 20. 由 |P'| ≤ 128、C 與 S 推導的上界。DC table 的 SIZE 9 ~ 11 與 AC table 的 SIZE 8 ~ 10 在本題不會出現。</p>
+
+<!-- ============================================================ -->
+<h2 id="s9">9. Bitstream Packing</h2>
+
+<h3>9.1 Field 串接</h3>
+<ul>
+    <li>每個 symbol 先輸出 Huffman code，再緊接 amplitude bit，兩者都是 MSB first。</li>
+    <li>256 個 block 的所有 field 串成<b>一條連續的 bitstream</b>，field 之間與 block 之間不插入任何分隔或 padding。</li>
+</ul>
+
+<h3>9.2 Byte 切分</h3>
+<p>bitstream 每滿 8 bit 形成一個 output byte。最早的 bit 放在 <code>out_data[7]</code>，第 8 個 bit 放在 <code>out_data[0]</code>。輸出為 raw byte：出現 <code>FF</code> 時不補 <code>00</code>。</p>
+<pre class="mono">bitstream : 110 01011 1010 100 1 ...
+bytes     : 11001011 10101001 ...
+out_data  : CB       A9       ...</pre>
+
+<h3>9.3 End-of-Image Padding</h3>
+<p>block 255 編碼完後，輸出所有完整的 byte。若剩下 1 ~ 7 個 bit，在尾端補 1 湊滿 8 bit，輸出最後一個 byte；剛好沒有剩餘 bit 時則直接結束。</p>
+
+<h3>9.4 Worked Example</h3>
+<p>以 8.5 與 8.6 的範例 block (example_trace.txt 的 Example block 1) 為例，DC 與 AC 共產生 41 bits，依序串接後切成 byte：</p>
+<figure>
+<svg id="fig9" viewBox="0 0 880 210" role="img" aria-label="Fig 10"></svg>
+<p class="cap">Fig 13. Field 串接與 byte 切分。41 bits 形成 97 E7 FF 3F 2D，剩 1 bit；若此為 block 255，補 7 個 1 輸出 7F。</p>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="s10">10. Specification Rules</h2>
+<p>以下整理 spec 中與模擬驗證有關的規定，分成兩部分：<b>DUT 必須遵守、PATTERN 要負責檢查的項目</b> (10.1)，以及 <b>PATTERN 送 stimulus 時必須遵守的項目</b> (10.2)。Spec No. 為 spec 原條號；合成、面積與 coding style 的規定不列入。</p>
+
+<h3>10.1 DUT Checklist</h3>
+<div class="scroll"><table>
+    <tr><th>ID</th><th class="l">DUT 必須滿足</th><th>Spec No.</th></tr>
+    <tr><td>C1</td><td class="l">reset 拉下後，out_valid 與 out_data 必須為 0</td><td>9</td></tr>
+    <tr><td>C2</td><td class="l">out_valid 任何時候都不可與 in_valid 同時為 high</td><td>17</td></tr>
+    <tr><td>C3</td><td class="l">一張圖的 16,384 個 pixel 收完之前不可輸出：reset 之後到 in_valid 落下之前，out_valid 必須為 0</td><td>I/O</td></tr>
+    <tr><td>C4</td><td class="l">out_valid 為 low 時，out_data 必須為 0</td><td>19</td></tr>
+    <tr><td>C5</td><td class="l">第 k 次 out_valid 為 high 時，out_data 必須等於 golden 的第 k 個 byte (bubble 不計)</td><td>18, 19, 20</td></tr>
+    <tr><td>C6</td><td class="l">out_valid 為 high 的 cycle 數必須<b>剛好</b>等於 golden 的 byte 數，不可多送</td><td>20</td></tr>
+    <tr><td>C7</td><td class="l">每張圖的 latency ≤ 50,000 cycles (定義見 Fig 14)</td><td>3, 20</td></tr>
+    <tr><td>C8</td><td class="l">out_valid 與 out_data 只在 clock posedge 改變</td><td>15</td></tr>
+    <tr><td>C9</td><td class="l">模擬過程中不可出現 MEM_error (memory model 的錯誤訊息)</td><td>6</td></tr>
+    <tr><td>C10</td><td class="l">gate-level simulation 在不加 notimingcheck 時不可有 timing violation</td><td>29</td></tr>
+</table></div>
+<p class="cap">Table 21. DUT 驗證項目</p>
+<figure>
+<svg id="fig10" viewBox="0 0 760 250" role="img" aria-label="Fig 11"></svg>
+<p class="cap">Fig 14. Latency 計算 (spec 範例)：in_valid 在 E1 落下，3 個 byte 在 E5、E6、E8 被取樣，latency = 8</p>
+</figure>
+
+<h3>10.2 Stimulus Rules</h3>
+<p>PATTERN 送出的 stimulus 必須符合以下規定，否則即使 DUT 出錯也不能歸咎於 DUT。</p>
+<div class="scroll"><table>
+    <tr><th>ID</th><th class="l">PATTERN 必須遵守</th><th>Spec No.</th></tr>
+    <tr><td>S1</td><td class="l">clock 週期 ≤ 20 ns，精度 0.1 ns (例：19.5 可以，19.55 不行)</td><td>2</td></tr>
+    <tr><td>S2</td><td class="l">非同步、active-low reset，rst_n 只在模擬開始時給一次</td><td>8, 9</td></tr>
+    <tr><td>S3</td><td class="l">所有 input 在 clock negedge 改變</td><td>10</td></tr>
+    <tr><td>S4</td><td class="l">in_valid 在 reset 結束之後才拉高</td><td>11</td></tr>
+    <tr><td>S5</td><td class="l">in_valid 連續拉高 16,384 cycles，中間不可有 bubble，pixel 依 raster 順序從 P(0,0) 送到 P(127,127)</td><td>12, 13</td></tr>
+    <tr><td>S6</td><td class="l">送完後 in_valid 拉低，in_data 給 unknown (X)</td><td>13</td></tr>
+    <tr><td>S7</td><td class="l">下一張圖的 in_valid 在上一張圖最後一個 out_valid 落下後的第 3 ~ 6 個 negedge 拉高</td><td>14, 21</td></tr>
+    <tr><td>S8</td><td class="l">在 clock negedge 取樣 DUT output</td><td>16</td></tr>
+</table></div>
+<p class="cap">Table 22. Stimulus 規定</p>
+
+<!-- ============================================================ -->
+<h2 id="s11">11. Verification Notes</h2>
+<ul>
+    <li><b>Stimulus：</b>連續送 16,384 個 pixel，in_valid 中間不能有 bubble；送完後 in_data 給 X。</li>
+    <li><b>Block 重組：</b>golden 要用 (bx, by, lx, ly) 從整張圖取出 block，不能把連續 64 個 input 當成一個 block。</li>
+    <li><b>精度：</b>golden 的 R、A 至少用 32-bit signed，中間不 round。</li>
+    <li><b>round_s：</b>用取絕對值的寫法，並用 Table 7 的例子做 unit test。</li>
+    <li><b>C 矩陣：</b>TA 沒給檔案，從 spec 手抄後用 Example block 2 驗證。</li>
+    <li><b>Golden 驗證：</b>用 example_trace.txt 逐格比對 D(u,v)。</li>
+    <li><b>Quantize：</b>DCT 與量化兩次 rounding 分開做。</li>
+    <li><b>Zigzag：</b>讀 zigzag_table.txt，(U, V) = (水平 u, 垂直 v)，不可用 row-major 攤平。</li>
+    <li><b>DC predictor：</b>每張圖開頭歸零，block 之間不歸零；連續多張圖時 golden 也要在每張圖開頭歸零。</li>
+    <li><b>AC 邊界：</b>RUN 剛好 16 後接非零 (ZRL + RUN 0)、RUN ≥ 32 (多個 ZRL)、結尾 ≥ 16 個 0 (只出 EOB)、Z[63] 非零 (無 EOB)、delta_dc = 0 (仍輸出 00)。</li>
+    <li><b>Packing：</b>block 之間不 padding；結尾不足 8 bit 補 1；byte 數必須完全相同；FF 後不補 00。</li>
+    <li><b>Coverage：</b>依 Table 20，DC SIZE 9 ~ 11 與 AC SIZE 8 ~ 10 的 Huffman entry 不會出現，coverage 應排除。</li>
+    <li><b>Directed cases：</b>constant block (只有 DC)、全 0 / 全 255 (D(0,0) = ±1024 的極值)、random noise (AC 最多、輸出最長)。</li>
+</ul>
+
+</main>
+
+<script>
+const C = [
+    [181, 181, 181, 181, 181, 181, 181, 181],
+    [251, 213, 142, 50, -50, -142, -213, -251],
+    [237, 98, -98, -237, -237, -98, 98, 237],
+    [213, -50, -251, -142, 142, 251, 50, -213],
+    [181, -181, -181, 181, 181, -181, -181, 181],
+    [142, -251, 50, 213, -213, -50, 251, -142],
+    [98, -237, 237, -98, -98, 237, -237, 98],
+    [50, -142, 213, -251, 251, -213, 142, -50]
+];
+const COL = { fg: '#1f2328', mute: '#57606a', line: '#d0d7de', grid: '#8c959f', acc: '#0550ae', accBg: '#eaf2fc', org: '#bc4c00', orgBg: '#f6d7c3', blueBg: '#cfe2fa' };
+const T = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.fs || 12}" text-anchor="${o.a || 'middle'}" fill="${o.c || COL.fg}"${o.w ? ` font-weight="${o.w}"` : ''}${o.mono ? ' font-family="ui-monospace,Consolas,monospace"' : ''}${o.rot ? ` transform="rotate(${o.rot} ${x} ${y})"` : ''}>${s}</text>`;
+const MK = (id, c = COL.mute) => `<defs><marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker></defs>`;
+const AR = (x1, y1, x2, y2, id, c = COL.mute) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="1.5" marker-end="url(#${id})"/>`;
+
+// C matrix table
+(function () {
+    let h = '<tr><th>freq \\ pos</th>' + [0,1,2,3,4,5,6,7].map(x => `<th>${x}</th>`).join('') + '</tr>';
+    C.forEach((row, u) => { h += `<tr><th>${u}</th>` + row.map(v => `<td>${v}</td>`).join('') + '</tr>'; });
+    document.getElementById('cmat').innerHTML = h;
+})();
+
+// Fig 1: algorithm flow
+(function () {
+    const st = [
+        ['Input', '切成 8x8 block', 'P (8b, unsigned)', 1],
+        ['Level Shift', 'P − 128', "P' (8b, signed)", 1],
+        ['2-D DCT', 'round_s(A, 18)', 'D(u,v) (12b)', 1],
+        ['Quantize', 'round_s(D, S)', 'Q(u,v)', 1],
+        ['Zigzag', '8x8 → 1-D', 'Z[0..63]', 1],
+        ['Entropy Code', 'DC / AC / Huffman', '變長 bitstream', 1],
+        ['Byte Pack', '每 8 bit → 1 byte', 'out_data', 1]
+    ];
+    const x0 = 70, w = 112, g = 18, y = 34, h = 54;
+    let s = MK('a1') + T(30, y + h / 2 + 4, 'in_data', { fs: 11, mono: 1 }) + AR(56, y + h / 2, x0 - 2, y + h / 2, 'a1');
+    st.forEach(([n, d, o, p], i) => {
+        const x = x0 + i * (w + g);
+        s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${p ? COL.accBg : '#fff'}" stroke="${p ? COL.acc : COL.grid}" stroke-width="1.3"/>`;
+        s += `<circle cx="${x}" cy="${y}" r="9" fill="${p ? COL.acc : COL.grid}"/>` + T(x, y + 4, i + 1, { fs: 10, c: '#fff', w: 700 });
+        s += T(x + w / 2, y + 23, n, { fs: 13.5, w: 600 }) + T(x + w / 2, y + 42, d, { fs: 11, c: COL.mute });
+        s += T(x + w / 2, y + h + 18, o, { fs: 11, c: COL.mute, mono: 1 });
+        if (i < st.length - 1) s += AR(x + w, y + h / 2, x + w + g - 2, y + h / 2, 'a1');
+    });
+    const xe = x0 + 7 * w + 6 * g, xp = x0 + 3 * w + 2 * g;
+    ['§3', '§4', '§5', '§6', '§7', '§8', '§9'].forEach((t, i) => { s += T(x0 + i * (w + g) + w / 2, 128, t, { fs: 11, c: COL.acc }); });
+    document.getElementById('fig1').innerHTML = s;
+})();
+
+// Fig 2: waveform
+(function () {
+    const W = 60, x0 = 100, brk = [5, 8, 13];
+    const rows = [
+        ['clk', 'clk'],
+        ['rst_n', 'bit', [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
+        ['in_valid', 'bit', [0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0]],
+        ['in_data', 'bus', ['X','X','P(0,0)','P(1,0)','P(2,0)','…','P(127,127)','X','X','X','X','X','X','X','X','X']],
+        ['out_valid', 'bit', [0,0,0,0,0,0,0,0,0,1,0,1,1,1,1,0]],
+        ['out_data', 'bus', ['0','0','0','0','0','0','0','0','0','B[0]','0','B[1]','B[2]','…','B[N−1]','0']]
+    ];
+    const n = 16, dy = 44, y0 = 40, a = 10;
+    let s = `<defs><pattern id="hx" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${COL.grid}" stroke-width="1.2"/></pattern></defs>`;
+    for (let i = 0; i <= n; i++) s += `<line x1="${x0 + i * W}" y1="${y0 - 18}" x2="${x0 + i * W}" y2="${y0 + 5 * dy + 14}" stroke="#eef1f4"/>`;
+    rows.forEach(([name, type, v], r) => {
+        const yc = y0 + r * dy, yh = yc - a, yl = yc + a;
+        s += T(10, yc + 4, name, { a: 'start', mono: 1, fs: 11.5 });
+        if (type === 'clk') {
+            let p = `${x0},${yl}`;
+            for (let i = 0; i < n; i++) { const x = x0 + i * W; p += ` ${x},${yl} ${x},${yh} ${x + W / 2},${yh} ${x + W / 2},${yl} ${x + W},${yl}`; }
+            s += `<polyline points="${p}" fill="none" stroke="${COL.fg}" stroke-width="1.3"/>`;
+        } else if (type === 'bit') {
+            let p = '';
+            v.forEach((b, i) => { const y = b ? yh : yl; p += ` ${x0 + i * W},${y} ${x0 + (i + 1) * W},${y}`; });
+            s += `<polyline points="${p}" fill="none" stroke="${COL.fg}" stroke-width="1.6"/>`;
+        } else {
+            let i = 0;
+            while (i < n) {
+                let j = i + 1; while (j < n && v[j] === v[i] && v[i] !== '…') j++;
+                const xs = x0 + i * W, xq = x0 + j * W, X = v[i] === 'X';
+                s += `<polygon points="${xs},${yc} ${xs + 4},${yh} ${xq - 4},${yh} ${xq},${yc} ${xq - 4},${yl} ${xs + 4},${yl}" fill="${X ? 'url(#hx)' : (v[i] === '0' ? '#fff' : COL.accBg)}" stroke="${COL.fg}" stroke-width="1.2"/>`;
+                if (!X) s += T((xs + xq) / 2, yc + 4, v[i], { fs: v[i].length > 7 ? 9 : 10.5, mono: 1 });
+                i = j;
+            }
+        }
+    });
+    brk.forEach(c => {
+        const x = x0 + c * W + W / 2;
+        s += `<rect x="${x - 5}" y="${y0 - 16}" width="10" height="${5 * dy + 28}" fill="#fff"/>`;
+        s += `<line x1="${x - 8}" y1="${y0 + 5 * dy + 12}" x2="${x - 2}" y2="${y0 - 16}" stroke="${COL.mute}"/><line x1="${x + 2}" y1="${y0 + 5 * dy + 12}" x2="${x + 8}" y2="${y0 - 16}" stroke="${COL.mute}"/>`;
+    });
+    s += T(x0 + 3.4 * W, y0 + 2 * dy - a - 6, '16,384 cycles，不能有 bubble', { fs: 11, c: COL.acc });
+    s += T(x0 + 11 * W, y0 + 4 * dy - a - 6, '共 N cycles，中間可有 bubble', { fs: 11, c: COL.acc });
+    const yb = y0 + 5 * dy + 32;
+    s += `<line x1="${x0 + 7 * W}" y1="${yb - 6}" x2="${x0 + 7 * W}" y2="${yb + 6}" stroke="${COL.acc}"/><line x1="${x0 + 15 * W}" y1="${yb - 6}" x2="${x0 + 15 * W}" y2="${yb + 6}" stroke="${COL.acc}"/>`;
+    s += `<line x1="${x0 + 7 * W}" y1="${yb}" x2="${x0 + 15 * W}" y2="${yb}" stroke="${COL.acc}" stroke-width="1.3"/>`;
+    s += T(x0 + 11 * W, yb + 18, 'latency ≤ 50,000 cycles (含輸出 cycle)', { fs: 11, c: COL.acc });
+    s += T(x0 + 1.5 * W, yb + 18, '斜線 = unknown (X)', { fs: 10.5, c: COL.mute });
+    document.getElementById('fig2').innerHTML = s;
+})();
+
+// Fig 3: block organization
+(function () {
+    const ox = 40, oy = 56, c = 18;
+    let s = T(ox + 8 * c, 24, '整張影像：16 x 16 個 block', { w: 600 });
+    s += T(ox + 8 * c, 44, 'x : 0 → 127  (bx : 0 → 15)', { fs: 11, c: COL.mute });
+    s += T(ox - 16, oy + 8 * c, 'y : 0 → 127  (by : 0 → 15)', { fs: 11, c: COL.mute, rot: 90 });
+    for (let by = 0; by < 16; by++) for (let bx = 0; bx < 16; bx++) {
+        const b = by * 16 + bx;
+        s += `<rect x="${ox + bx * c}" y="${oy + by * c}" width="${c}" height="${c}" fill="${b === 0 ? COL.orgBg : (by === 0 ? COL.accBg : '#fff')}" stroke="${COL.line}"/>`;
+        if ([0, 1, 15, 16, 240, 255].includes(b)) s += T(ox + bx * c + c / 2, oy + by * c + c / 2 + 3, b, { fs: 8 });
+    }
+    s += `<rect x="${ox}" y="${oy}" width="${c}" height="${c}" fill="none" stroke="${COL.org}" stroke-width="2"/>`;
+    s += T(ox + 8 * c, oy + 16 * c + 22, 'block ID  b = 16·by + bx', { fs: 11.5, mono: 1 });
+    s += T(ox + 8 * c, oy + 16 * c + 40, '藍色 = 第 0 ~ 7 列 pixel 所在的 block row', { fs: 10.5, c: COL.mute });
+    const zx = 450, zy = 56, z = 32;
+    s += T(zx + 4 * z, 24, '放大 block 0：格內數字 = 輸入順序 k', { w: 600 });
+    s += `<line x1="${ox + c}" y1="${oy}" x2="${zx}" y2="${zy}" stroke="${COL.org}" stroke-dasharray="4 3"/><line x1="${ox + c}" y1="${oy + c}" x2="${zx}" y2="${zy + 8 * z}" stroke="${COL.org}" stroke-dasharray="4 3"/>`;
+    for (let i = 0; i < 8; i++) { s += T(zx + i * z + z / 2, zy - 6, i, { fs: 10, c: COL.mute }); s += T(zx - 10, zy + i * z + z / 2 + 4, i, { fs: 10, c: COL.mute }); }
+    s += T(zx + 8 * z + 12, zy - 6, 'lx', { fs: 10, c: COL.mute }) + T(zx - 10, zy + 8 * z + 14, 'ly', { fs: 10, c: COL.mute });
+    for (let ly = 0; ly < 8; ly++) for (let lx = 0; lx < 8; lx++) {
+        s += `<rect x="${zx + lx * z}" y="${zy + ly * z}" width="${z}" height="${z}" fill="${COL.orgBg}" stroke="#fff"/>`;
+        s += T(zx + lx * z + z / 2, zy + ly * z + z / 2 + 4, 128 * ly + lx, { fs: 10, mono: 1 });
+    }
+    s += `<rect x="${zx}" y="${zy}" width="${8 * z}" height="${8 * z}" fill="none" stroke="${COL.org}" stroke-width="2"/>`;
+    s += T(zx + 4 * z, zy + 8 * z + 22, '每列只有 8 個連續 pixel，相鄰兩列的 k 差 128', { fs: 11 });
+    s += T(zx + 4 * z, zy + 8 * z + 40, 'block 0 要到 k = 903 才收齊', { fs: 11, c: COL.org });
+    document.getElementById('fig3').innerHTML = s;
+})();
+
+// Fig 4: DCT basis
+(function () {
+    const ox = 46, oy = 46, p = 4, t = 8 * p, g = 5;
+    let s = T(ox + 4 * (t + g), 16, 'u (水平頻率) →　　v (垂直頻率) ↓', { fs: 11.5, c: COL.mute });
+    s += T(18, oy + 4 * (t + g) - 8, 'v', { fs: 11.5, c: COL.mute }) + T(18, oy + 4 * (t + g) + 8, '↓', { fs: 11.5, c: COL.mute });
+    for (let i = 0; i < 8; i++) { s += T(ox + i * (t + g) + t / 2, oy - 8, i, { fs: 10 }); s += T(ox - 10, oy + i * (t + g) + t / 2 + 4, i, { fs: 10 }); }
+    for (let v = 0; v < 8; v++) for (let u = 0; u < 8; u++) {
+        const bx = ox + u * (t + g), by = oy + v * (t + g);
+        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+            const k = Math.round(128 + 127 * C[u][x] * C[v][y] / (251 * 251));
+            s += `<rect x="${bx + x * p}" y="${by + y * p}" width="${p}" height="${p}" fill="rgb(${k},${k},${k})"/>`;
+        }
+        s += `<rect x="${bx}" y="${by}" width="${t}" height="${t}" fill="none" stroke="${u + v ? COL.line : COL.org}" stroke-width="${u + v ? 1 : 2.5}"/>`;
+    }
+    const yb = oy + 8 * (t + g) + 12;
+    s += T(ox + t / 2, yb, 'DC', { fs: 11, c: COL.org, w: 700 });
+    s += T(ox + 7 * (t + g) + t / 2, yb, '最高頻', { fs: 11, c: COL.mute });
+    document.getElementById('fig4').innerHTML = s;
+})();
+
+// Fig 5: row / column transform
+(function () {
+    const c = 15, gw = 8 * c, y = 60;
+    const gx = [50, 340, 630];
+    let s = MK('a5');
+    const grid = (x, title, ax, ay, hlRow, hlCol) => {
+        let r = T(x + gw / 2, y - 30, title, { w: 600, mono: 1 });
+        r += T(x + gw / 2, y - 10, ax, { fs: 10.5, c: COL.mute }) + T(x - 14, y + gw / 2 + 4, ay, { fs: 10.5, c: COL.mute });
+        for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) {
+            let f = '#fff';
+            if (hlRow && j === 0) f = COL.orgBg;
+            if (hlCol && i === 0) f = (hlRow && j === 0) ? '#e3c6e8' : COL.blueBg;
+            r += `<rect x="${x + i * c}" y="${y + j * c}" width="${c}" height="${c}" fill="${f}" stroke="${COL.line}"/>`;
+        }
+        if (hlRow) r += `<rect x="${x}" y="${y}" width="${gw}" height="${c}" fill="none" stroke="${COL.org}" stroke-width="2"/>`;
+        if (hlCol) r += `<rect x="${x}" y="${y}" width="${c}" height="${gw}" fill="none" stroke="${COL.acc}" stroke-width="2"/>`;
+        return r + `<rect x="${x}" y="${y}" width="${gw}" height="${gw}" fill="none" stroke="${COL.grid}"/>`;
+    };
+    s += grid(gx[0], "P'(x,y)", 'x (位置) →', 'y↓', 1, 0);
+    s += grid(gx[1], 'R(u,y)', 'u (頻率) →', 'y↓', 1, 1);
+    s += grid(gx[2], 'A(u,v)', 'u (頻率) →', 'v↓', 0, 1);
+    const ym = y + gw / 2;
+    [[0, '① row 1-D DCT', "Σx P'(x,y)·C(u,x)", COL.org], [1, '② column 1-D DCT', 'Σy R(u,y)·C(v,y)', COL.acc]].forEach(([k, t1, t2, cl]) => {
+        const xa = gx[k] + gw + 10, xb = gx[k + 1] - 28;
+        s += AR(xa, ym, xb, ym, 'a5');
+        s += T((xa + xb) / 2, ym - 10, t1, { fs: 12, c: cl, w: 600 }) + T((xa + xb) / 2, ym + 20, t2, { fs: 11, mono: 1 });
+    });
+    s += T(gx[0] + gw / 2, y + gw + 22, '一次取一列 (8 個 x)', { fs: 11, c: COL.org });
+    s += T(gx[1] + gw / 2, y + gw + 22, '列 y 的結果填成 R 的一列', { fs: 11, c: COL.org });
+    s += T(gx[1] + gw / 2, y + gw + 40, '再一次取一行 (8 個 y)', { fs: 11, c: COL.acc });
+    s += T(gx[2] + gw / 2, y + gw + 22, '行 u 的結果填成 A 的一行', { fs: 11, c: COL.acc });
+    s += T(gx[2] + gw / 2, y + gw + 44, 'D(u,v) = round_s(A(u,v), 18)', { fs: 11.5, mono: 1, w: 600 });
+    // detail: R(2,y) = sum over x of P'(x,y) * C(2,x)
+    const dy0 = 300, cw = 50, dx0 = 60, u0 = 2;
+    s += `<line x1="20" y1="${dy0 - 28}" x2="770" y2="${dy0 - 28}" stroke="${COL.line}" stroke-dasharray="4 3"/>`;
+    s += T(20, dy0 - 8, '放大：計算 R(2, y)，u = 2 固定，x 從 0 走到 7', { a: 'start', fs: 12, w: 600 });
+    for (let x = 0; x < 8; x++) {
+        const cx = dx0 + x * cw;
+        s += T(cx + cw / 2, dy0 + 16, 'x=' + x, { fs: 10.5, c: COL.mute });
+        s += `<rect x="${cx + 2}" y="${dy0 + 24}" width="${cw - 4}" height="26" fill="${COL.orgBg}" stroke="${COL.org}"/>` + T(cx + cw / 2, dy0 + 41, "P'(" + x + ',y)', { fs: 9.5, mono: 1 });
+        s += T(cx + cw / 2, dy0 + 68, '×', { fs: 12, c: COL.mute });
+        s += `<rect x="${cx + 2}" y="${dy0 + 76}" width="${cw - 4}" height="26" fill="#fff" stroke="${COL.grid}"/>` + T(cx + cw / 2, dy0 + 93, C[u0][x], { fs: 11, mono: 1 });
+        s += `<line x1="${cx + cw / 2}" y1="${dy0 + 104}" x2="${dx0 + 4 * cw}" y2="${dy0 + 136}" stroke="${COL.grid}"/>`;
+    }
+    s += T(dx0 - 10, dy0 + 41, "P'", { a: 'end', fs: 11, c: COL.org });
+    s += T(dx0 - 10, dy0 + 93, 'C(2,x)', { a: 'end', fs: 11, c: COL.mute });
+    const sx = dx0 + 4 * cw, sy = dy0 + 148;
+    s += `<circle cx="${sx}" cy="${sy}" r="13" fill="#fff" stroke="${COL.acc}" stroke-width="1.5"/>` + T(sx, sy + 5, 'Σ', { fs: 14, c: COL.acc, w: 700 });
+    // output row R(u,y), u = 0..7
+    const rx0 = 520, rc = 30, ry = dy0 + 64;
+    s += T(rx0 + 4 * rc, dy0 + 16, 'R(u, y) 這一列的 8 個輸出', { fs: 11, c: COL.mute });
+    for (let u = 0; u < 8; u++) {
+        s += `<rect x="${rx0 + u * rc}" y="${ry}" width="${rc}" height="${rc}" fill="${u === u0 ? COL.orgBg : '#fff'}" stroke="${u === u0 ? COL.org : COL.line}" stroke-width="${u === u0 ? 2 : 1}"/>`;
+        s += T(rx0 + u * rc + rc / 2, ry - 6, 'u=' + u, { fs: 9.5, c: u === u0 ? COL.org : COL.mute });
+    }
+    s += MK('a5d', COL.acc) + `<path d="M${sx + 14},${sy} H${rx0 + u0 * rc + rc / 2} V${ry + rc + 4}" fill="none" stroke="${COL.acc}" stroke-width="1.5" marker-end="url(#a5d)"/>`;
+    s += T(rx0 + 4 * rc, sy + 34, '其他 u 各用 C 的第 u 列，重複同樣的計算', { fs: 10.5, c: COL.mute });
+    document.getElementById('fig5').innerHTML = s;
+})();
+
+// ---------------- Part 2 data (from 00_TESTBED/src) ----------------
+const S_TAB = [
+    [4, 3, 3, 4, 5, 5, 6, 6],
+    [4, 4, 4, 4, 5, 6, 6, 6],
+    [4, 4, 4, 5, 5, 6, 6, 6],
+    [4, 4, 4, 5, 6, 6, 6, 6],
+    [4, 4, 5, 6, 6, 7, 7, 6],
+    [5, 5, 6, 6, 6, 7, 7, 7],
+    [6, 6, 6, 6, 7, 7, 7, 7],
+    [6, 7, 7, 7, 7, 7, 7, 7]
+];  // S_TAB[v][u]
+const ZZ = [[0,0],[1,0],[0,1],[0,2],[1,1],[2,0],[3,0],[2,1],[1,2],[0,3],[0,4],[1,3],[2,2],[3,1],[4,0],[5,0],[4,1],[3,2],[2,3],[1,4],[0,5],[0,6],[1,5],[2,4],[3,3],[4,2],[5,1],[6,0],[7,0],[6,1],[5,2],[4,3],[3,4],[2,5],[1,6],[0,7],[1,7],[2,6],[3,5],[4,4],[5,3],[6,2],[7,1],[7,2],[6,3],[5,4],[4,5],[3,6],[2,7],[3,7],[4,6],[5,5],[6,4],[7,3],[7,4],[6,5],[5,6],[4,7],[5,7],[6,6],[7,5],[7,6],[6,7],[7,7]];  // [u, v]
+const DC_LUT = ['00','010','011','100','101','110','1110','11110','111110','1111110','11111110','111111110'];
+const AC_RAW = '00 0 0 1010|01 0 1 00|02 0 2 01|03 0 3 100|04 0 4 1011|05 0 5 11010|06 0 6 1111000|07 0 7 11111000|08 0 8 1111110110|09 0 9 1111111110000010|0A 0 10 1111111110000011|11 1 1 1100|12 1 2 11011|13 1 3 1111001|14 1 4 111110110|15 1 5 11111110110|16 1 6 1111111110000100|17 1 7 1111111110000101|18 1 8 1111111110000110|19 1 9 1111111110000111|1A 1 10 1111111110001000|21 2 1 11100|22 2 2 11111001|23 2 3 1111110111|24 2 4 111111110100|25 2 5 1111111110001001|26 2 6 1111111110001010|27 2 7 1111111110001011|28 2 8 1111111110001100|29 2 9 1111111110001101|2A 2 10 1111111110001110|31 3 1 111010|32 3 2 111110111|33 3 3 111111110101|34 3 4 1111111110001111|35 3 5 1111111110010000|36 3 6 1111111110010001|37 3 7 1111111110010010|38 3 8 1111111110010011|39 3 9 1111111110010100|3A 3 10 1111111110010101|41 4 1 111011|42 4 2 1111111000|43 4 3 1111111110010110|44 4 4 1111111110010111|45 4 5 1111111110011000|46 4 6 1111111110011001|47 4 7 1111111110011010|48 4 8 1111111110011011|49 4 9 1111111110011100|4A 4 10 1111111110011101|51 5 1 1111010|52 5 2 11111110111|53 5 3 1111111110011110|54 5 4 1111111110011111|55 5 5 1111111110100000|56 5 6 1111111110100001|57 5 7 1111111110100010|58 5 8 1111111110100011|59 5 9 1111111110100100|5A 5 10 1111111110100101|61 6 1 1111011|62 6 2 111111110110|63 6 3 1111111110100110|64 6 4 1111111110100111|65 6 5 1111111110101000|66 6 6 1111111110101001|67 6 7 1111111110101010|68 6 8 1111111110101011|69 6 9 1111111110101100|6A 6 10 1111111110101101|71 7 1 11111010|72 7 2 111111110111|73 7 3 1111111110101110|74 7 4 1111111110101111|75 7 5 1111111110110000|76 7 6 1111111110110001|77 7 7 1111111110110010|78 7 8 1111111110110011|79 7 9 1111111110110100|7A 7 10 1111111110110101|81 8 1 111111000|82 8 2 111111111000000|83 8 3 1111111110110110|84 8 4 1111111110110111|85 8 5 1111111110111000|86 8 6 1111111110111001|87 8 7 1111111110111010|88 8 8 1111111110111011|89 8 9 1111111110111100|8A 8 10 1111111110111101|91 9 1 111111001|92 9 2 1111111110111110|93 9 3 1111111110111111|94 9 4 1111111111000000|95 9 5 1111111111000001|96 9 6 1111111111000010|97 9 7 1111111111000011|98 9 8 1111111111000100|99 9 9 1111111111000101|9A 9 10 1111111111000110|A1 10 1 111111010|A2 10 2 1111111111000111|A3 10 3 1111111111001000|A4 10 4 1111111111001001|A5 10 5 1111111111001010|A6 10 6 1111111111001011|A7 10 7 1111111111001100|A8 10 8 1111111111001101|A9 10 9 1111111111001110|AA 10 10 1111111111001111|B1 11 1 1111111001|B2 11 2 1111111111010000|B3 11 3 1111111111010001|B4 11 4 1111111111010010|B5 11 5 1111111111010011|B6 11 6 1111111111010100|B7 11 7 1111111111010101|B8 11 8 1111111111010110|B9 11 9 1111111111010111|BA 11 10 1111111111011000|C1 12 1 1111111010|C2 12 2 1111111111011001|C3 12 3 1111111111011010|C4 12 4 1111111111011011|C5 12 5 1111111111011100|C6 12 6 1111111111011101|C7 12 7 1111111111011110|C8 12 8 1111111111011111|C9 12 9 1111111111100000|CA 12 10 1111111111100001|D1 13 1 11111111000|D2 13 2 1111111111100010|D3 13 3 1111111111100011|D4 13 4 1111111111100100|D5 13 5 1111111111100101|D6 13 6 1111111111100110|D7 13 7 1111111111100111|D8 13 8 1111111111101000|D9 13 9 1111111111101001|DA 13 10 1111111111101010|E1 14 1 1111111111101011|E2 14 2 1111111111101100|E3 14 3 1111111111101101|E4 14 4 1111111111101110|E5 14 5 1111111111101111|E6 14 6 1111111111110000|E7 14 7 1111111111110001|E8 14 8 1111111111110010|E9 14 9 1111111111110011|EA 14 10 1111111111110100|F0 15 0 11111111001|F1 15 1 1111111111110101|F2 15 2 1111111111110110|F3 15 3 1111111111110111|F4 15 4 1111111111111000|F5 15 5 1111111111111001|F6 15 6 1111111111111010|F7 15 7 1111111111111011|F8 15 8 1111111111111100|F9 15 9 1111111111111101|FA 15 10 1111111111111110';
+
+// Table 14: DC Huffman
+(function () {
+    let h = '<tr><th>SIZE</th><th>LENGTH</th><th>CODE_BITS</th></tr>';
+    DC_LUT.forEach((b, i) => { h += `<tr><td>${i}</td><td>${b.length}</td><td style="text-align:left">${b}</td></tr>`; });
+    document.getElementById('dctab').innerHTML = h;
+})();
+
+// Table 16: AC Huffman (full)
+(function () {
+    const e = AC_RAW.split('|').map(r => r.split(' '));
+    const half = Math.ceil(e.length / 2);
+    let h = '<tr>' + '<th>SYM</th><th>RUN</th><th>SIZE</th><th>LEN</th><th>CODE_BITS</th>'.repeat(2) + '</tr>';
+    for (let i = 0; i < half; i++) {
+        h += '<tr>';
+        [e[i], e[i + half]].forEach(r => {
+            if (r) h += `<td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3].length}</td><td style="text-align:left">${r[3]}</td>`;
+            else h += '<td></td>'.repeat(5);
+        });
+        h += '</tr>';
+    }
+    document.getElementById('actab').innerHTML = h;
+})();
+
+// Fig 6: shift matrix
+(function () {
+    const ox = 60, oy = 56, c = 36;
+    const shade = { 3: '#f2f7fd', 4: '#d6e6fa', 5: '#a9cbf2', 6: '#6fa6e3', 7: '#2f73c8' };
+    let s = T(ox + 4 * c, 22, 'u (水平頻率) →', { fs: 11.5, c: COL.mute });
+    s += T(18, oy + 4 * c - 8, 'v', { fs: 11.5, c: COL.mute }) + T(18, oy + 4 * c + 8, '↓', { fs: 11.5, c: COL.mute });
+    for (let i = 0; i < 8; i++) { s += T(ox + i * c + c / 2, oy - 8, i, { fs: 10.5 }); s += T(ox - 12, oy + i * c + c / 2 + 4, i, { fs: 10.5 }); }
+    for (let v = 0; v < 8; v++) for (let u = 0; u < 8; u++) {
+        const k = S_TAB[v][u];
+        s += `<rect x="${ox + u * c}" y="${oy + v * c}" width="${c}" height="${c}" fill="${shade[k]}" stroke="#fff"/>`;
+        s += T(ox + u * c + c / 2, oy + v * c + c / 2 + 5, k, { fs: 13, c: k >= 6 ? '#fff' : COL.fg, w: 600 });
+    }
+    s += `<rect x="${ox}" y="${oy}" width="${c}" height="${c}" fill="none" stroke="${COL.org}" stroke-width="2.5"/>`;
+    const ly = oy + 8 * c + 22;
+    [3, 4, 5, 6, 7].forEach((k, i) => {
+        s += `<rect x="${ox + 20 + i * 62}" y="${ly - 11}" width="16" height="14" fill="${shade[k]}" stroke="${COL.line}"/>` + T(ox + 42 + i * 62, ly, `S=${k}`, { fs: 10.5, a: 'start' });
+    });
+    document.getElementById('fig6').innerHTML = s;
+})();
+
+// Fig 7: zigzag
+(function () {
+    const ox = 60, oy = 56, c = 36;
+    let s = MK('a7', COL.acc) + T(ox + 4 * c, 22, 'u (水平頻率) →', { fs: 11.5, c: COL.mute });
+    s += T(18, oy + 4 * c - 8, 'v', { fs: 11.5, c: COL.mute }) + T(18, oy + 4 * c + 8, '↓', { fs: 11.5, c: COL.mute });
+    for (let i = 0; i < 8; i++) { s += T(ox + i * c + c / 2, oy - 8, i, { fs: 10.5 }); s += T(ox - 12, oy + i * c + c / 2 + 4, i, { fs: 10.5 }); }
+    const idx = {};
+    ZZ.forEach(([u, v], i) => { idx[u + ',' + v] = i; });
+    for (let v = 0; v < 8; v++) for (let u = 0; u < 8; u++)
+        s += `<rect x="${ox + u * c}" y="${oy + v * c}" width="${c}" height="${c}" fill="${u + v ? '#fff' : COL.orgBg}" stroke="${COL.line}"/>`;
+    const pts = ZZ.map(([u, v]) => `${ox + u * c + c / 2},${oy + v * c + c / 2}`).join(' ');
+    s += `<polyline points="${pts}" fill="none" stroke="${COL.acc}" stroke-width="1.6" opacity=".55"/>`;
+    for (let v = 0; v < 8; v++) for (let u = 0; u < 8; u++) {
+        const cx = ox + u * c + c / 2, cy = oy + v * c + c / 2;
+        s += `<circle cx="${cx}" cy="${cy}" r="10" fill="#fff" stroke="${COL.acc}" stroke-width="1"/>` + T(cx, cy + 4, idx[u + ',' + v], { fs: 10, mono: 1 });
+    }
+    s += T(ox + c / 2, oy + 8 * c + 20, 'Z[0] = DC', { fs: 11, c: COL.org, w: 600 });
+    s += T(ox + 7 * c + c / 2, oy + 8 * c + 20, 'Z[63]', { fs: 11, c: COL.mute });
+    document.getElementById('fig7').innerHTML = s;
+})();
+
+// Fig 8: field structure of one block
+(function () {
+    const f = [
+        ['DC code', COL.accBg, 80], ['DC amp', COL.orgBg, 70],
+        ['AC code', COL.accBg, 80], ['AC amp', COL.orgBg, 70], ['…', '#fff', 40],
+        ['ZRL', '#e8def6', 60], ['…', '#fff', 40],
+        ['AC code', COL.accBg, 80], ['AC amp', COL.orgBg, 70], ['EOB', '#dafbe1', 60]
+    ];
+    let x = 20, s = '';
+    const y = 40, h = 34, xs = [];
+    f.forEach(([n, c, w]) => {
+        xs.push(x);
+        s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}" stroke="${n === '…' ? 'none' : COL.grid}"/>` + T(x + w / 2, y + 21, n, { fs: 11.5 });
+        x += w;
+    });
+    const br = (x1, x2, t) => `<path d="M${x1},${y - 6} V${y - 12} H${x2} V${y - 6}" fill="none" stroke="${COL.mute}"/>` + T((x1 + x2) / 2, y - 18, t, { fs: 11, c: COL.mute });
+    s += br(xs[0], xs[2], 'DC symbol (必有)');
+    s += br(xs[2], x, 'AC symbols (0 ~ 63 個) + EOB (結尾有 0 時)');
+    const ly = y + h + 30;
+    [['Huffman code', COL.accBg], ['Amplitude (SIZE bits)', COL.orgBg], ['ZRL', '#e8def6'], ['EOB', '#dafbe1']].forEach(([n, c], i) => {
+        s += `<rect x="${20 + i * 180}" y="${ly - 11}" width="16" height="14" fill="${c}" stroke="${COL.grid}"/>` + T(42 + i * 180, ly, n, { fs: 11, a: 'start' });
+    });
+    s += T(x + 20, y + 21, '→ 下一個 block', { fs: 11, c: COL.mute, a: 'start' });
+    document.getElementById('fig8').innerHTML = s;
+})();
+
+// Fig 10: worked example packing
+(function () {
+    const fields = [
+        ['100', 'DC[3]', COL.accBg], ['101', 'amp +5', COL.orgBg],
+        ['11111001', 'AC[22]', COL.accBg], ['11', 'amp +3', COL.orgBg],
+        ['11111111001', 'ZRL', '#e8def6'],
+        ['11111001', 'AC[22]', COL.accBg], ['01', 'amp −2', COL.orgBg],
+        ['1010', 'EOB', '#dafbe1']
+    ];
+    const bw = 17, ox = 20, y = 70;
+    let s = '', i = 0;
+    fields.forEach(([b, n, c], k) => {
+        const x1 = ox + i * bw, x2 = x1 + b.length * bw;
+        const ty = k % 2 ? y - 12 : y - 30;
+        s += `<line x1="${x1 + 1}" y1="${ty + 4}" x2="${x2 - 1}" y2="${ty + 4}" stroke="${COL.mute}"/>` + T((x1 + x2) / 2, ty, n, { fs: 10.5 });
+        for (const ch of b) {
+            const x = ox + i * bw;
+            s += `<rect x="${x}" y="${y}" width="${bw}" height="24" fill="${c}" stroke="#fff"/>` + T(x + bw / 2, y + 17, ch, { fs: 11.5, mono: 1 });
+            i++;
+        }
+    });
+    for (let p = 0; p < 7; p++) {
+        const x = ox + (i + p) * bw;
+        s += `<rect x="${x}" y="${y}" width="${bw}" height="24" fill="#fff" stroke="${COL.grid}" stroke-dasharray="3 2"/>` + T(x + bw / 2, y + 17, '1', { fs: 11.5, mono: 1, c: COL.mute });
+    }
+    s += T(ox + (i + 3.5) * bw, y - 30, 'padding (僅 block 255)', { fs: 10.5, c: COL.mute });
+    const bytes = ['97', 'E7', 'FF', '3F', '2D', '7F'];
+    bytes.forEach((h, k) => {
+        const x1 = ox + k * 8 * bw, x2 = x1 + 8 * bw, yb = y + 34, last = k === 5;
+        s += `<path d="M${x1 + 2},${yb} V${yb + 8} H${x2 - 2} V${yb}" fill="none" stroke="${last ? COL.mute : COL.acc}"${last ? ' stroke-dasharray="3 2"' : ''}/>`;
+        s += T((x1 + x2) / 2, yb + 26, h, { fs: 14, mono: 1, w: 700, c: last ? COL.mute : COL.acc });
+        s += T((x1 + x2) / 2, yb + 44, `byte ${k}${last ? ' (若為 block 255)' : ''}`, { fs: 10, c: COL.mute });
+    });
+    s += T(ox, y + 108, '每個 byte 的第 1 個 bit = out_data[7]', { fs: 11, a: 'start', c: COL.mute });
+    document.getElementById('fig9').innerHTML = s;
+})();
+
+// Fig 11: latency definition
+(function () {
+    const W = 60, x0 = 110, n = 10, a = 10;
+    const ys = { clk: 50, in_valid: 92, out_valid: 134, out_data: 176 };
+    const E = k => x0 + k * W;   // negedge E_k
+    let s = '';
+    for (let k = 0; k < n; k++) {
+        s += `<line x1="${E(k)}" y1="26" x2="${E(k)}" y2="196" stroke="#eef1f4"/>`;
+        s += T(E(k), 20, 'E' + k, { fs: 10.5, c: k ? COL.fg : COL.mute, mono: 1 });
+    }
+    Object.keys(ys).forEach(k => { s += T(10, ys[k] + 4, k, { a: 'start', mono: 1, fs: 11.5 }); });
+    // clk: rise at E(k) - W/2, fall at E(k)
+    let p = `${E(0) - W / 2},${ys.clk + a}`;
+    for (let k = 0; k < n; k++) p += ` ${E(k) - W / 2},${ys.clk - a} ${E(k)},${ys.clk - a} ${E(k)},${ys.clk + a} ${E(k) + W / 2},${ys.clk + a}`;
+    s += `<polyline points="${p}" fill="none" stroke="${COL.fg}" stroke-width="1.3"/>`;
+    // in_valid: high until E1 (changes at negedge)
+    s += `<polyline points="${E(0) - W / 2},${ys.in_valid - a} ${E(1)},${ys.in_valid - a} ${E(1)},${ys.in_valid + a} ${E(n - 1) + W / 2},${ys.in_valid + a}" fill="none" stroke="${COL.fg}" stroke-width="1.6"/>`;
+    // out_valid: high around E5, E6, E8 (changes at posedge)
+    const hi = [5, 6, 8];
+    let q = `${E(0) - W / 2},${ys.out_valid + a}`;
+    for (let k = 1; k < n; k++) {
+        const on = hi.includes(k), prev = hi.includes(k - 1), xr = E(k) - W / 2;
+        if (on && !prev) q += ` ${xr},${ys.out_valid + a} ${xr},${ys.out_valid - a}`;
+        if (!on && prev) q += ` ${xr},${ys.out_valid - a} ${xr},${ys.out_valid + a}`;
+    }
+    q += ` ${E(n - 1) + W / 2},${ys.out_valid + a}`;
+    s += `<polyline points="${q}" fill="none" stroke="${COL.fg}" stroke-width="1.6"/>`;
+    // out_data bus
+    const seg = [[0, 4, '0'], [4, 5, 'B0'], [5, 6, 'B1'], [6, 7, '0'], [7, 8, 'B2'], [8, 9.5, '0']];
+    seg.forEach(([k1, k2, t]) => {
+        const xs = Math.max(E(k1) + W / 2, E(0) - W / 2), xe = E(k2) + W / 2 - (k2 === 9.5 ? W / 2 : 0), yc = ys.out_data;
+        const x1 = k1 === 0 ? E(0) - W / 2 : xs;
+        s += `<polygon points="${x1},${yc} ${x1 + 4},${yc - a} ${xe - 4},${yc - a} ${xe},${yc} ${xe - 4},${yc + a} ${x1 + 4},${yc + a}" fill="${t === '0' ? '#fff' : COL.accBg}" stroke="${COL.fg}" stroke-width="1.2"/>`;
+        s += T((x1 + xe) / 2, yc + 4, t, { fs: 10.5, mono: 1 });
+    });
+    // sample points
+    hi.forEach(k => {
+        s += `<line x1="${E(k)}" y1="${ys.out_valid - 18}" x2="${E(k)}" y2="${ys.out_data - a}" stroke="${COL.org}" stroke-dasharray="3 2"/>`;
+        s += `<circle cx="${E(k)}" cy="${ys.out_valid - a}" r="3.5" fill="${COL.org}"/>`;
+    });
+    // cycle count
+    for (let k = 1; k <= 8; k++) s += T(E(k), 216, k, { fs: 11, c: COL.acc, w: 600 });
+    s += T(x0 - 10, 216, 'count', { fs: 10.5, c: COL.acc, a: 'end' });
+    s += `<line x1="${E(1)}" y1="228" x2="${E(8)}" y2="228" stroke="${COL.acc}" stroke-width="1.3"/><line x1="${E(1)}" y1="223" x2="${E(1)}" y2="233" stroke="${COL.acc}"/><line x1="${E(8)}" y1="223" x2="${E(8)}" y2="233" stroke="${COL.acc}"/>`;
+    s += T((E(1) + E(8)) / 2, 246, 'latency = 8', { fs: 11.5, c: COL.acc, w: 600 });
+    s += T(E(9) + 26, 246, '● = negedge 取樣', { fs: 10, c: COL.org, a: 'end' });
+    document.getElementById('fig10').innerHTML = s;
+})();
+
+// ---------- document enhancements ----------
+(function () {
+    document.querySelectorAll('main h2').forEach(h => {
+        const m = h.textContent.match(/^(\d+)\.\s*(.*)$/);
+        if (m) h.innerHTML = `<span class="num">${m[1].padStart(2, '0')}</span><span>${m[2]}</span>`;
+    });
+    document.querySelectorAll('main h3').forEach(h => {
+        const m = h.innerHTML.match(/^(\d+\.\d+)\s*(.*)$/);
+        if (m) h.innerHTML = `<span class="num">${m[1]}</span>${m[2]}`;
+    });
+    document.querySelectorAll('.cap').forEach(c => {
+        c.innerHTML = c.innerHTML.replace(/^(Fig \d+\.|Table \d+\.)/, '<b>$1</b>');
+    });
+    const ol = document.querySelector('#toc ol'), links = [];
+    document.querySelectorAll('main h2[id]').forEach(h => {
+        const n = h.querySelector('.num'), t = h.querySelector('.num + span');
+        const li = document.createElement('li');
+        li.innerHTML = `<a href="#${h.id}"><i>${n ? n.textContent : ''}</i>${t ? t.textContent : h.textContent}</a>`;
+        ol.appendChild(li);
+        links.push([h, li.firstChild]);
+    });
+    const spy = () => {
+        let cur = links[0];
+        links.forEach(l => { if (l[0].getBoundingClientRect().top < 120) cur = l; });
+        links.forEach(l => l[1].classList.toggle('on', l === cur));
+    };
+    addEventListener('scroll', spy, { passive: true });
+    spy();
+})();
+
+// Fig 10: Huffman code length examples
+(function () {
+    const rows = [
+        ['01', 'RUN 0, SIZE 1', '00'],
+        ['02', 'RUN 0, SIZE 2', '01'],
+        ['03', 'RUN 0, SIZE 3', '100'],
+        ['00', 'EOB', '1010'],
+        ['11', 'RUN 1, SIZE 1', '1100'],
+        ['22', 'RUN 2, SIZE 2', '11111001'],
+        ['F0', 'ZRL', '11111111001'],
+        ['0A', 'RUN 0, SIZE 10', '1111111110000011']
+    ];
+    const x0 = 250, bw = 30, rh = 32, y0 = 36;
+    let s = T(20, 18, 'AC symbol', { a: 'start', fs: 11.5, c: COL.mute }) + T(x0, 18, 'Huffman code (每格 1 bit)', { a: 'start', fs: 11.5, c: COL.mute });
+    rows.forEach(([a, m, b], i) => {
+        const y = y0 + i * rh, sp = m === 'EOB' || m === 'ZRL';
+        s += T(20, y + 17, `8'h${a}`, { a: 'start', fs: 12, mono: 1, w: 600 });
+        s += T(92, y + 17, m, { a: 'start', fs: 11.5, c: sp ? COL.org : COL.fg });
+        for (let k = 0; k < b.length; k++) {
+            s += `<rect x="${x0 + k * bw}" y="${y + 2}" width="${bw - 2}" height="22" rx="2" fill="${sp ? COL.orgBg : COL.accBg}" stroke="${sp ? COL.org : COL.acc}" stroke-width=".8"/>`;
+            s += T(x0 + k * bw + bw / 2 - 1, y + 18, b[k], { fs: 12, mono: 1 });
+        }
+        s += T(x0 + b.length * bw + 8, y + 18, `${b.length} bits`, { a: 'start', fs: 11, c: COL.mute });
+    });
+    document.getElementById('fighuff').innerHTML = s;
+})();
+
+// ---------- toc toggle (narrow screens) ----------
+(function () {
+    const btn = document.getElementById('tocbtn'), nav = document.getElementById('toc');
+    btn.addEventListener('click', e => { e.stopPropagation(); document.body.classList.toggle('toc-open'); });
+    nav.addEventListener('click', e => { if (e.target.closest('a')) document.body.classList.remove('toc-open'); });
+    document.addEventListener('click', e => {
+        if (document.body.classList.contains('toc-open') && !nav.contains(e.target)) document.body.classList.remove('toc-open');
+    });
+})();
+
+// Fig 10: DC encoding flow
+(function () {
+    const B = (x, y, w, h, t, sub, fill, stroke) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${stroke}" stroke-width="1.3"/>` +
+        T(x + w / 2, y + (sub ? h / 2 - 2 : h / 2 + 5), t, { fs: 13, w: 600, mono: 1 }) + (sub ? T(x + w / 2, y + h / 2 + 14, sub, { fs: 10.5, c: COL.mute }) : '');
+    let s = MK('a9') + MK('a9b', COL.acc);
+    // inputs
+    s += B(40, 30, 110, 44, 'Z[0]', '目前 block', '#fff', COL.grid);
+    s += B(40, 120, 110, 44, 'previous_dc', '前一個 block', '#fff', COL.grid);
+    // subtract
+    s += `<circle cx="200" cy="97" r="15" fill="#fff" stroke="${COL.fg}" stroke-width="1.3"/>` + T(200, 102, '−', { fs: 16, w: 700 });
+    s += AR(150, 52, 186, 88, 'a9') + AR(150, 142, 186, 106, 'a9');
+    // delta
+    s += AR(215, 97, 248, 97, 'a9');
+    s += B(250, 75, 110, 44, 'delta_dc', '', COL.accBg, COL.acc);
+    // SIZE path
+    s += `<path d="M360,90 H385 V52 H404" fill="none" stroke="${COL.mute}" stroke-width="1.5" marker-end="url(#a9)"/>`;
+    s += B(406, 30, 130, 44, 'SIZE', '|delta_dc| 的 bit 數', '#fff', COL.grid);
+    s += AR(536, 52, 558, 52, 'a9');
+    s += B(560, 30, 110, 44, 'DC_LUT[SIZE]', '查 DC table', '#fff', COL.grid);
+    s += AR(670, 52, 698, 52, 'a9');
+    s += B(700, 30, 130, 44, 'Huffman code', '第 1 個 field', COL.accBg, COL.acc);
+    // amplitude path
+    s += `<path d="M360,104 H385 V142 H404" fill="none" stroke="${COL.mute}" stroke-width="1.5" marker-end="url(#a9)"/>`;
+    s += `<line x1="471" y1="74" x2="471" y2="118" stroke="${COL.mute}" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#a9)"/>`;
+    s += B(406, 120, 264, 44, 'amplitude(delta_dc, SIZE)', 'SIZE 個 bit，負數為 ones\' complement', '#fff', COL.grid);
+    s += AR(670, 142, 698, 142, 'a9');
+    s += B(700, 120, 130, 44, 'amplitude', '第 2 個 field', COL.orgBg, COL.org);
+    // update predictor
+    s += `<path d="M40,52 H22 V142 H38" fill="none" stroke="${COL.acc}" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#a9b)"/>`;
+    s += T(22, 196, '更新：previous_dc = Z[0]，給下一個 block 使用', { a: 'start', fs: 11, c: COL.acc });
+    s += T(830, 196, 'DC 輸出 = Huffman code + amplitude', { a: 'end', fs: 11.5, w: 600 });
+    document.getElementById('figdc').innerHTML = s;
+})();
+
+// AC run-length flow
+(function () {
+    const R = (x, y, w, h, lines, fill, stroke) => {
+        let r = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill || '#fff'}" stroke="${stroke || COL.grid}" stroke-width="1.3"/>`;
+        const y0 = y + h / 2 - (lines.length - 1) * 8 + 4;
+        lines.forEach((t, i) => { r += T(x + w / 2, y0 + i * 16, t, { fs: 12 }); });
+        return r;
+    };
+    const D = (cx, cy, w, h, t) => `<polygon points="${cx},${cy - h / 2} ${cx + w / 2},${cy} ${cx},${cy + h / 2} ${cx - w / 2},${cy}" fill="#fff8f0" stroke="${COL.org}" stroke-width="1.3"/>` + T(cx, cy + 4, t, { fs: 12, w: 600 });
+    const L = (x, y, t) => T(x, y, t, { fs: 11, c: COL.acc, w: 600 });
+    const P = (d) => `<path d="${d}" fill="none" stroke="${COL.mute}" stroke-width="1.5" marker-end="url(#aac)"/>`;
+    let s = MK('aac');
+    s += R(20, 50, 140, 40, ['run = 0, k = 1']);
+    s += D(250, 70, 150, 64, 'k ≤ 63 ?');
+    s += D(440, 70, 160, 64, 'Z[k] == 0 ?');
+    s += R(580, 50, 120, 40, ['run = run + 1']);
+    s += R(740, 50, 100, 40, ['k = k + 1']);
+    s += D(440, 190, 160, 64, 'run ≥ 16 ?');
+    s += R(580, 165, 150, 50, ['輸出 ZRL', 'run = run − 16'], '#e8def6', '#8250df');
+    s += R(330, 270, 220, 60, ['輸出 AC_LUT[(run<<4)|SIZE]', '+ amplitude，run = 0'], COL.accBg, COL.acc);
+    s += D(250, 190, 150, 64, 'run > 0 ?');
+    s += R(180, 270, 140, 40, ['輸出 EOB'], '#dafbe1', '#1a7f37');
+    s += R(160, 360, 180, 36, ['此 block 的 AC 結束']);
+    // arrows
+    s += P('M160,70 H173');
+    s += P('M325,70 H358') + L(340, 62, '是');
+    s += P('M250,102 V156') + L(262, 132, '否');
+    s += P('M520,70 H578') + L(548, 62, '是');
+    s += P('M440,102 V156') + L(452, 122, '否');
+    s += P('M700,70 H738');
+    s += P('M790,50 V22 H250 V36');
+    s += P('M520,190 H578') + L(548, 182, '是');
+    s += P('M655,165 V135 H446');
+    s += P('M440,222 V268') + L(452, 248, '否');
+    s += P('M550,300 H790 V92');
+    s += P('M250,222 V268') + L(262, 248, '是');
+    s += P('M175,190 H120 V378 H158') + L(146, 182, '否');
+    s += P('M250,310 V358');
+    document.getElementById('figac').innerHTML = s;
+})();
+
+// Entropy coding overview: Z -> symbols -> bits
+(function () {
+    const x0 = 140, cw = 11, y1 = 40;
+    const nz = { 0: '−15', 3: '+3', 22: '−2' };
+    let s = MK('aec');
+    s += T(20, y1 + 14, '① Z[0..63]', { a: 'start', fs: 12, w: 600 });
+    for (let k = 0; k < 64; k++) {
+        const on = k in nz;
+        s += `<rect x="${x0 + k * cw}" y="${y1}" width="${cw}" height="20" fill="${on ? (k ? COL.accBg : COL.orgBg) : '#fff'}" stroke="${on ? (k ? COL.acc : COL.org) : COL.line}"/>`;
+        if (on) s += T(x0 + k * cw + cw / 2, y1 - 8, nz[k], { fs: 11, w: 600, c: k ? COL.acc : COL.org });
+    }
+    const br = (k1, k2, t) => {
+        const xa = x0 + k1 * cw + 1, xb = x0 + (k2 + 1) * cw - 1, y = y1 + 26;
+        return `<path d="M${xa},${y} V${y + 5} H${xb} V${y}" fill="none" stroke="${COL.mute}"/>` + T((xa + xb) / 2, y + 18, t, { fs: 10.5, c: COL.mute });
+    };
+    s += br(1, 2, '2 個 0') + br(4, 21, '18 個 0') + br(23, 63, '41 個 0');
+    const syms = [
+        ['DC：差 +5', '−15 − (−20)', '100 101', 0, COL.orgBg, COL.org],
+        ['跳過 2 個 0，+3', 'AC symbol', '11111001 11', 3, COL.accBg, COL.acc],
+        ['ZRL', '跳過 16 個 0', '11111111001', 12, '#e8def6', '#8250df'],
+        ['跳過 2 個 0，−2', 'AC symbol', '11111001 01', 22, COL.accBg, COL.acc],
+        ['EOB', '後面全是 0', '1010', 43, '#dafbe1', '#1a7f37']
+    ];
+    const bw = 128, gap = 14, y2 = 130, y3 = 230;
+    s += T(20, y2 + 26, '② symbol', { a: 'start', fs: 12, w: 600 });
+    s += T(20, y3 + 4, '③ 輸出 bit', { a: 'start', fs: 12, w: 600 });
+    syms.forEach(([t1, t2, bits, k, f, st], i) => {
+        const bx = x0 + i * (bw + gap), cx = bx + bw / 2;
+        s += `<line x1="${x0 + k * cw + cw / 2}" y1="${y1 + 50}" x2="${cx}" y2="${y2 - 2}" stroke="${COL.grid}" stroke-dasharray="3 3"/>`;
+        s += `<rect x="${bx}" y="${y2}" width="${bw}" height="44" rx="4" fill="${f}" stroke="${st}" stroke-width="1.3"/>`;
+        s += T(cx, y2 + 19, t1, { fs: 12, w: 600 }) + T(cx, y2 + 35, t2, { fs: 10.5, c: COL.mute });
+        s += AR(cx, y2 + 46, cx, y3 - 16, 'aec');
+        s += T(cx, y3 + 4, bits, { fs: 12.5, mono: 1, w: 600 });
+    });
+    s += T(x0 + 5 * (bw + gap) - gap, y3 + 40, '共 6 + 10 + 11 + 10 + 4 = 41 bit (原本 768 bit)', { a: 'end', fs: 11.5, c: COL.acc, w: 600 });
+    document.getElementById('figec').innerHTML = s;
+})();
+</script>
+</body>
+</html>
