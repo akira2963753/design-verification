@@ -607,22 +607,74 @@ out_data  : CB       A9       ...</pre>
 <p class="cap">Table 22. Stimulus 規定</p>
 
 <!-- ============================================================ -->
-<h2 id="s11">11. Verification Notes</h2>
-<ul>
-    <li><b>Stimulus：</b>連續送 16,384 個 pixel，in_valid 中間不能有 bubble；送完後 in_data 給 X。</li>
-    <li><b>Block 重組：</b>golden 要用 (bx, by, lx, ly) 從整張圖取出 block，不能把連續 64 個 input 當成一個 block。</li>
-    <li><b>精度：</b>golden 的 R、A 至少用 32-bit signed，中間不 round。</li>
-    <li><b>round_s：</b>用取絕對值的寫法，並用 Table 7 的例子做 unit test。</li>
-    <li><b>C 矩陣：</b>TA 沒給檔案，從 spec 手抄後用 Example block 2 驗證。</li>
-    <li><b>Golden 驗證：</b>用 example_trace.txt 逐格比對 D(u,v)。</li>
-    <li><b>Quantize：</b>DCT 與量化兩次 rounding 分開做。</li>
-    <li><b>Zigzag：</b>讀 zigzag_table.txt，(U, V) = (水平 u, 垂直 v)，不可用 row-major 攤平。</li>
-    <li><b>DC predictor：</b>每張圖開頭歸零，block 之間不歸零；連續多張圖時 golden 也要在每張圖開頭歸零。</li>
-    <li><b>AC 邊界：</b>RUN 剛好 16 後接非零 (ZRL + RUN 0)、RUN ≥ 32 (多個 ZRL)、結尾 ≥ 16 個 0 (只出 EOB)、Z[63] 非零 (無 EOB)、delta_dc = 0 (仍輸出 00)。</li>
-    <li><b>Packing：</b>block 之間不 padding；結尾不足 8 bit 補 1；byte 數必須完全相同；FF 後不補 00。</li>
-    <li><b>Coverage：</b>依 Table 20，DC SIZE 9 ~ 11 與 AC SIZE 8 ~ 10 的 Huffman entry 不會出現，coverage 應排除。</li>
-    <li><b>Directed cases：</b>constant block (只有 DC)、全 0 / 全 255 (D(0,0) = ±1024 的極值)、random noise (AC 最多、輸出最長)。</li>
-</ul>
+<h2 id="s11">11. Decoder</h2>
+<p>Decoder 不屬於本題 DUT 的範圍。它是 encoder 的反向流程：把 byte 串還原成 Z，再一路反算回影像。了解 decoder 有助於理解 bitstream 為什麼不需要分隔符號，也可以把 DUT 的輸出解回 Z，找出第一個出錯的 field。</p>
+
+<h3>11.1 流程總覽</h3>
+<figure>
+<svg id="figdec" viewBox="0 0 980 150" role="img" aria-label="Decoder flow"></svg>
+<p class="cap">Fig 15. Decoder flow (方塊下方為該級輸出的資料)</p>
+</figure>
+<div class="scroll"><table>
+    <tr><th>Encoder</th><th>Decoder</th><th>結果</th></tr>
+    <tr><td>Byte packing</td><td>Byte → bitstream</td><td>完全還原</td></tr>
+    <tr><td>Entropy coding</td><td>Entropy decoding</td><td>完全還原</td></tr>
+    <tr><td>Zigzag scan</td><td>Inverse zigzag</td><td>完全還原</td></tr>
+    <tr><td>Quantization</td><td>Dequantization</td><td><b>無法完全還原</b></td></tr>
+    <tr><td>2-D DCT</td><td>2-D IDCT</td><td>近似還原</td></tr>
+    <tr><td>Level shift</td><td>+128 並限制在 0 ~ 255</td><td>完全還原</td></tr>
+</table></div>
+<p class="cap">Table 23. Encoder 與 decoder 的對應</p>
+<p>Entropy decoding 是 lossless，解出的 Z 與 encoder 的 Z 完全相同；量化時被捨去的小數無法找回，所以重建出的影像與原圖不完全相同 (lossy)。</p>
+
+<h3>11.2 Entropy Decoding</h3>
+<p>bitstream 從頭開始逐 bit 讀取，依 block 0 → 255 的順序解碼。每個 block 先解 DC，再解 AC：</p>
+<ol>
+    <li><b>DC：</b>逐 bit 讀取，直到讀到的 bit 對上 DC table 的某個碼，得到 SIZE；再讀 SIZE 個 bit 還原 delta_dc。<code>Z[0] = previous_dc + delta_dc</code>，接著 <code>previous_dc = Z[0]</code>。</li>
+    <li><b>AC：</b>從 <code>k = 1</code> 開始，逐 bit 讀取直到對上 AC table 的某個碼，依 symbol 處理：
+        <ul>
+            <li><b>EOB：</b><code>Z[k..63]</code> 全部為 0，此 block 結束。</li>
+            <li><b>ZRL：</b>跳過 16 個 0，<code>k = k + 16</code>。</li>
+            <li><b>(RUN, SIZE)：</b>跳過 RUN 個 0 (<code>k = k + RUN</code>)，再讀 SIZE 個 bit 還原成 <code>Z[k]</code>，<code>k = k + 1</code>。</li>
+        </ul>
+        k 到達 64 時 (Z[63] 非零、沒有 EOB) 也結束此 block。</li>
+    <li>256 個 block 解完後，剩下的 bit 為 end-of-image padding 的 1，直接忽略。</li>
+</ol>
+<p><b>Amplitude 還原：</b>讀到的 SIZE 個 bit 中，最高位為 1 代表正數，數值即為該二進位；最高位為 0 代表負數，數值為 <code>value − (2<sup>SIZE</sup> − 1)</code>，也就是逐位元反相後加上負號。</p>
+<div class="scroll"><table>
+    <tr><th>SIZE</th><th>讀到的 bit</th><th>MSB</th><th class="l">還原</th></tr>
+    <tr><td>3</td><td class="mono">101</td><td>1</td><td class="l">+5</td></tr>
+    <tr><td>3</td><td class="mono">011</td><td>0</td><td class="l">3 − 7 = −4</td></tr>
+    <tr><td>5</td><td class="mono">01011</td><td>0</td><td class="l">11 − 31 = −20</td></tr>
+    <tr><td>0</td><td>(不讀)</td><td>—</td><td class="l">0</td></tr>
+</table></div>
+<p class="cap">Table 24. Amplitude 還原範例</p>
+<pre class="mono">previous_dc = 0
+for b = 0 .. 255:
+    Z = {0, ..., 0}
+    s = read_huffman(DC_LUT)                 // 得到 SIZE
+    previous_dc = previous_dc + read_amplitude(s)
+    Z[0] = previous_dc
+    k = 1
+    while k &lt; 64:
+        sym = read_huffman(AC_LUT)
+        if sym == 8'h00: break               // EOB
+        if sym == 8'hF0: k = k + 16; continue // ZRL
+        k = k + (sym >> 4)                   // RUN
+        Z[k] = read_amplitude(sym &amp; 4'hF)   // SIZE
+        k = k + 1</pre>
+
+<h3>11.3 影像重建</h3>
+<p>每個 block 解出 Z[0..63] 後，依下列步驟還原成 64 個 pixel：</p>
+<ol>
+    <li><b>Inverse zigzag：</b><code>Q(ZZ_U[k], ZZ_V[k]) = Z[k]</code>，把一維序列放回 8x8。</li>
+    <li><b>Dequantization：</b><code>D'(u,v) = Q(u,v) × 2<sup>S(u,v)</sup></code>。量化時被捨去的部分無法找回，D' 只是 D 的近似值。</li>
+    <li><b>2-D IDCT：</b>使用同一個 C 矩陣與同樣的 2<sup>18</sup> 縮放，只是改成對 (u, v) 加總：
+        <pre class="mono">P'(x,y) = round_s( Σu Σv C(u,x) · C(v,y) · D'(u,v), 18 )</pre>
+        DCT 是正交轉換，反轉換就是轉置，所以 C 矩陣可以直接共用。實作上同樣可以拆成先對 v、再對 u 的兩次 1-D 運算。</li>
+    <li><b>Inverse level shift：</b><code>P = P' + 128</code>，超出 0 ~ 255 的值限制在 0 或 255。</li>
+    <li><b>放回影像：</b>block (bx, by) 的 (x, y) 寫到 <code>P(8·bx + x, 8·by + y)</code>。</li>
+</ol>
 
 </main>
 
@@ -1204,6 +1256,33 @@ const AC_RAW = '00 0 0 1010|01 0 1 00|02 0 2 01|03 0 3 100|04 0 4 1011|05 0 5 11
     });
     s += T(x0 + 5 * (bw + gap) - gap, y3 + 40, '共 6 + 10 + 11 + 10 + 4 = 41 bit (原本 768 bit)', { a: 'end', fs: 11.5, c: COL.acc, w: 600 });
     document.getElementById('figec').innerHTML = s;
+})();
+
+// Decoder flow
+(function () {
+    const st = [
+        ['Byte → Bit', '串成 bitstream', 'bitstream', 1],
+        ['Entropy Dec', 'DC / AC / Huffman', 'Z[0..63]', 1],
+        ['Inv Zigzag', '1-D → 8x8', 'Q(u,v)', 1],
+        ['Dequantize', 'Q × 2^S', "D'(u,v)", 0],
+        ['2-D IDCT', 'round_s(·, 18)', "P'(x,y)", 0],
+        ['+128', '限制 0 ~ 255', 'P (8b)', 1],
+        ['Block → Image', '放回 128x128', '影像', 1]
+    ];
+    const x0 = 70, w = 112, g = 18, y = 34, h = 54;
+    let s = MK('ad') + T(30, y + h / 2 + 4, 'out_data', { fs: 11, mono: 1 }) + AR(56, y + h / 2, x0 - 2, y + h / 2, 'ad');
+    st.forEach(([n, d, o, ok], i) => {
+        const x = x0 + i * (w + g);
+        s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${ok ? COL.accBg : COL.orgBg}" stroke="${ok ? COL.acc : COL.org}" stroke-width="1.3"/>`;
+        s += `<circle cx="${x}" cy="${y}" r="9" fill="${ok ? COL.acc : COL.org}"/>` + T(x, y + 4, i + 1, { fs: 10, c: '#fff', w: 700 });
+        s += T(x + w / 2, y + 23, n, { fs: 13.5, w: 600 }) + T(x + w / 2, y + 42, d, { fs: 11, c: COL.mute });
+        s += T(x + w / 2, y + h + 18, o, { fs: 11, c: COL.mute, mono: 1 });
+        if (i < st.length - 1) s += AR(x + w, y + h / 2, x + w + g - 2, y + h / 2, 'ad');
+    });
+    const ly = 132;
+    s += `<rect x="${x0}" y="${ly - 11}" width="16" height="14" fill="${COL.accBg}" stroke="${COL.acc}"/>` + T(x0 + 22, ly, '完全還原', { a: 'start', fs: 11 });
+    s += `<rect x="${x0 + 110}" y="${ly - 11}" width="16" height="14" fill="${COL.orgBg}" stroke="${COL.org}"/>` + T(x0 + 132, ly, '近似還原 (量化的誤差無法找回)', { a: 'start', fs: 11 });
+    document.getElementById('figdec').innerHTML = s;
 })();
 </script>
 </body>
